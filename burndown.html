@@ -1,0 +1,54 @@
+<html>
+	<head>
+		<title>Spending in 2016</title>
+		<style>
+			.xaxis path, .yaxis path, .xaxis line, .yaxis line {
+				fill: none;
+				stroke-width: 1;
+				stroke: black;
+			}
+			.solidLine {
+  				fill: none;
+  				stroke: steelblue;
+  				stroke-width: 2.5;
+				}
+			.dashedLine {
+				fill: none;
+				stroke: #FFDD33;
+				stroke-width: 2.5;
+				stroke-dasharray: 5;
+			}
+			.menu {
+				width: 50%;
+				display: table;
+			}
+			.row {
+				display: table-row;
+			}
+			.cell {
+				display: table-cell;
+			}
+
+		</style>
+
+	</head>
+	<body>
+		<div>
+			<h3 align="center">Expenditures</h3>
+			<h4 align="center">Fiscal Year 2015/2016</h4>
+		</div>
+		<div id="chart"></div>
+		<div id="menu" class="menu">
+			<div class="row">
+				<div class="cell">Ledger</div>
+				<div class="cell">Fund</div>
+			</div>
+			<div class="row">
+				<div id="ledger" class="cell"></div>
+				<div id="fund" class="cell"></div>
+			</div>
+		</div>
+	</body>
+	<script src="https://d3js.org/d3.v3.min.js" charset="utf-8"></script>
+	<script src="scripts/burndown.js"></script>
+</html>
