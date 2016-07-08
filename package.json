@@ -3,7 +3,7 @@
 	"version": "0.0.1",
 	"description": "dashboard data utilities for visualizing collections-related data",
 	"author": "Dolsy Smith <dsmith@gwu.edu>",
-	"main": "scripts/colldev-dashboard.js",
+	"main": "module/colldev-dashboard.js",
 	"dependencies": {
 		"express": "~4.14.0",
 		"d3": "~4.1.0"

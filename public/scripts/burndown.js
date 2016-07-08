@@ -5,12 +5,7 @@ var data,
 	fundDict = {},
 	MAX_ALLOC = 0;
 
-//var dateFields = [{d: 'INVOICE_STATUS_DATE', q: 'inv_stat_quarter'}, {d: 'INVOICE_DATE', q: 'inv_quarter'}];
 
-var dateFields = ['INVOICE_STATUS_DATE', 'INVOICE_DATE'];
-
-var fullFormat = d3.time.format("%Y-%m-%d %H:%M:%S"),
-	condensedFormat = d3.time.format('%Y-%m-%d');
 
 
 var margin = {top: 20, right: 20, bottom: 150, left: 120},
@@ -63,94 +58,22 @@ chart.append('g')
         .attr('transform', 'translate(0,' + height  + ')');
 
 
-//server function
-function parseDates (data) {
-	//data = sortData(data, dateFields[0]);
-	return data.map(function (d) {
-		dateFields.forEach(function (dateKey) {
-			d[dateKey] = fullFormat.parse(d[dateKey]);
-		})
-		return d;
-	});
+window.onload = function () {
 
-}
+// AJAX call to load the initial data
+	var req = $.get('/burndown-data');
 
-//server function
-function convertTypes(data, cells) {
-
-	return data.map(function (d) {
-		cells.forEach(function (c){
-			d[c] = +d[c];
-		})
-		return d;
-	})
-}
-
-//server function
-function makeDataDicts(ledgerData) {
-
-	ledgerData.forEach(function (d) {
-		fundDict[d.FUND_NAME] = +d.CURRENT_ALLOCATION;
-		if (d.LEDGER_NAME in ledgerDict) {
-			ledgerDict[d.LEDGER_NAME].total += +d.CURRENT_ALLOCATION;
-			ledgerDict[d.LEDGER_NAME].funds.push(d.FUND_NAME);
-		}
-		else {
-			ledgerDict[d.LEDGER_NAME] = {total: +d.CURRENT_ALLOCATION, funds: [d.FUND_NAME]};
-		}
-
-	});
-	//console.log(ledgerDict)
-	//console.log(fundDict)
-}
-
-// server function
-function rollUpByDate(data, dateKey, valueKey, maxAlloc) {
-	
-	//data = sortData(data, dateKey);
-	var nest = d3.nest()
-			.key(function (d) {
-				//--> To make a smoother line: return condensedFormat(d[dateKey]); 
-				return condensedFormat(d[dateKey]);
-			})
-			.sortKeys(function (a, b) {
-				return new Date(a) - new Date(b);
-			})
-			.rollup(function (leaves) {
-				return {sum: d3.sum(leaves, function (d) {
-					return d[valueKey];
-				})};
-			});
-
-	data = nest.entries(data);
-
-	cumSum = 0;
-	data.forEach(function (d, i) {
-		cumSum += d.values.sum;	
-		d.values.cumsum = maxAlloc - cumSum;
-	});
-
-
-	//console.log(data);
-	return data;
-} 
-
-
-//server function
-d3.csv('../data/invoices_2016_all.csv', function (rows) {
-	data = rows;
-	d3.csv('../data/ledgers_2016.csv', function (rows) {
-		makeDataDicts(rows);
+	req.done(function (data) {
 		
-		data = convertTypes(data, ['AMOUNT']);
-		data = parseDates(data);
-		//console.log(data);
+	});
+
+
+}
+
 
 		formatX(data);
 
-		MAX_ALLOC =  d3.sum(d3.values(ledgerDict), function (d) {
-				return d.total;
-			});
+		
 		sumData1 = rollUpByDate(data, dateFields[0], 'AMOUNT', MAX_ALLOC);
 		//sumData2 = rollUpByDate(data, dateFields[1], 'AMOUNT', MAX_ALLOC);
 		formatY(MAX_ALLOC);
