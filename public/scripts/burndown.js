@@ -1,13 +1,5 @@
 (function () {
 
-var data,
-	ledgerDict = {},
-	fundDict = {},
-	MAX_ALLOC = 0;
-
-
-
-
 var margin = {top: 20, right: 20, bottom: 150, left: 120},
     width = 1060 - margin.left - margin.right,
     height = 600 - margin.top - margin.bottom;
@@ -44,10 +36,10 @@ var line = d3.svg.line()
 			})
 			.y(function (d) {
 				//console.log(d)
-				return y(d.values.cumsum);
+				return y(d.value.cumsum);
 			});
 
-var dispatch = d3.dispatch("load", "statechange");
+var dispatch = d3.dispatch('load', 'update');
 
 
 chart.append('g')
@@ -60,92 +52,44 @@ chart.append('g')
 
 window.onload = function () {
 
-// AJAX call to load the initial data
-	var req = $.get('/burndown-data');
-
-	req.done(function (data) {
-		
-	});
-
+	postData({ledger: null, fund: null}, 'load');
 
 }
 
+function postData (params, dispatchEvent) {
+/*Handles AJAX calls with server. User selections posted to server; received data passed to dispatcher functions 
+	as determined by the dispatchEvent parameter*/
+	var req = $.post('/burndown-data', prop);
 
-		formatX(data);
+	req.done(function (body) {
+		var data = body.data,
+			maxAlloc = body.maxAlloc
+			options = body.options;
 
-		
-		sumData1 = rollUpByDate(data, dateFields[0], 'AMOUNT', MAX_ALLOC);
-		//sumData2 = rollUpByDate(data, dateFields[1], 'AMOUNT', MAX_ALLOC);
-		formatY(MAX_ALLOC);
-		//console.log(sumData)
-		drawLine(sumData1, "solidLine");
-		//drawLine(sumData2, "dashedLine")
-
-		dispatch.load(); 
+	
+		dispatch.call(dispatchEvent, this, data, maxAlloc, options)
 	});
+}
 
-});
-
-dispatch.on('statechange.data', function (obj) {
-
-	//console.log(obj.value)
-	var filteredData,
-		ledgerSelected,
-		fundSelected,
-		key,
-		maxAlloc;
-
-	// Condition one: fund menu changed, all funds selected: need to retrieve ledger
-	if (obj.key == 'FUND_NAME' && obj.value == 'All funds') {
-		ledgerSelected = d3.select('#ledger select')
-							.property('value');
-		if (ledgerSelected != 'All ledgers') {
-			key == 'LEDGER_NAME';
-			maxAlloc = ledgerDict[ledgerSelected].total;
-		}
-	}
-	// Condition two: fund menu changed, specific fund selected; no need to worry about ledger
-	else if (obj.key == 'FUND_NAME') {
-		fundSelected = obj.value;
-		key = 'PARENT_FUND';
-		maxAlloc = fundDict[fundSelected];
-	}	
-	// Condition three: ledger menu changed; no need to worry about funds
-	else if (obj.key == 'LEDGER_NAME' && obj.value != 'All ledgers') {
-		ledgerSelected = obj.value;
-		key = 'LEDGER_NAME';
-		maxAlloc = ledgerDict[ledgerSelected].total;
-	}
-	// Condition four: all ledgers, all funds (default position, no filtering necessary)
-	else key = null;
-
-	// No need to filter on BOTH ledgers and funds, since funds belong to specific ledgers
-	//replace with call to server function
-	//if filtering, use local maxAlloc
-	if (key) {
-		filteredData = data.filter(function (d) {
-			return d[key] == ((ledgerSelected) ? ledgerSelected : fundSelected);
-		});
-		sumData = rollUpByDate(filteredData, dateFields[0], 'AMOUNT', maxAlloc);
-		updateChart(sumData, maxAlloc)
-	}
-	//if not filtering, use global maxAlloc
-	else {
-		sumData = rollUpByDate(data, dateFields[0], 'AMOUNT', MAX_ALLOC);
-		updateChart(sumData, MAX_ALLOC);
-	}
-
-});
-
-function updateChart(data, maxAlloc) {
+dispatch.on('update.chart', function (data, maxAlloc, options) {
 
 	formatY(maxAlloc);
 	
 	d3.select(".solidLine")
       .attr("d", line(data));
-}
 
-function drawMenu (selection, options, className, testFunc) {
+});
+
+dispatch.on('load.chart', function (data, maxAlloc, options) {
+
+	formatX(data);
+	formatY(maxAlloc);
+	
+	drawLine(data, "solidLine");
+
+});
+
+function drawMenu (selection, options, className) {
 	
 	selection.selectAll('option')
 				.data(options)
@@ -153,41 +97,33 @@ function drawMenu (selection, options, className, testFunc) {
 				.append('option')
 				.attr('class', className)
 				.text(function (d) {
-					return d;
+					return d.key;
 				})
 				.property('disabled', function (d) {
-					return testFunc(d);
+					return d.value;
 				});
 }
 
-dispatch.on("load.menus", function () {
-
-	var ledgerOptions = ['All ledgers'].concat(d3.keys(ledgerDict)),
-		fundOptions = ['All funds'].concat(d3.keys(fundDict)); 
+dispatch.on("load.menus", function (data, maxAlloc, options) {
 
 	d3.select('#ledger')
 				.append('select')
-				.call(drawMenu, ledgerOptions, 'ledgerOption', function (d) {
-						return (d == 'All ledgers' || ledgerDict[d].total > 0) ? false : true;
-						})
+				.call(drawMenu, options.ledgers, 'ledgerOption')
 				.on('change', function () {
-					dispatch.statechange({key: 'LEDGER_NAME', value: this.value})
+					dispatch.statechange({ledger: this.value, fund: null});
 				});
 
 	d3.select('#fund')
 			.append('select')
-			.call(drawMenu, fundOptions, 'fundOption', function (d) {
-				return (d == 'All funds' || fundDict[d] > 0) ? false : true;	
-			})
+			.call(drawMenu, options.funds, 'fundOption')
 			.on('change', function () {
-				dispatch.statechange({key: 'FUND_NAME', value: this.value})
+				dispatch.statechange({ledger: d3.select('#ledger select').property('value'), fund: this.value});
 			});
 });
 
-dispatch.on('statechange.menus', function (obj) {
+dispatch.on('update.menus', function (data, maxAlloc, options) {
 
-	//Need only update the fund menu if what has changed is the ledger menu
-	//console.log(obj.value)
+	
 	if (obj.key == 'LEDGER_NAME') {
 		var fundOptions = (obj.value == 'All ledgers') ? 
 			['All funds'].concat(d3.keys(fundDict)) : 
@@ -222,19 +158,6 @@ function formatY (maxAlloc) {
 }
 
 function formatX (data) {
-
-	/*var extent = d3.extent(data.map(function (d) {
-		return d[dateFields[1]];
-	})),
-		firstDate = d3.min([data[0][dateFields[0]], extent[0]]),
-		lastDate = d3.max([data[data.length-1][dateFields[0]], extent[1]]);*/
-
-
-	//var firstDate = data[0][dateFields[0]],
-	//	lastDate = data[data.length-1][dateFields[0]];
-
-
-	//x.domain([firstDate, lastDate]);
 
 	x.domain(d3.extent(data.map(function (d) {
 		return d[dateFields[0]];

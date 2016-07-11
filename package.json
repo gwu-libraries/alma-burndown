@@ -6,7 +6,8 @@
 	"main": "module/colldev-dashboard.js",
 	"dependencies": {
 		"express": "~4.14.0",
-		"d3": "~4.1.0"
+		"d3": "~4.1.0",
+		"body-parser": "~1.15.0"
 	},
 	"license": true
 }
