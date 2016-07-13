@@ -6,20 +6,16 @@ var margin = {top: 20, right: 20, bottom: 150, left: 120},
 
 var dollars = d3.format('$,.2f');
 
-var y = d3.scale.linear()
+var y = d3.scaleLinear()
     .range([height, 0]);
 
-var x = d3.time.scale()
+var x = d3.scaleTime()
     .range([0, width]);
 
-var yAxis = d3.svg.axis()
-    .scale(y)
-    .orient("left")
+var yAxis = d3.axisLeft(y)
     .tickFormat(dollars);
 
-var xAxis = d3.svg.axis()
-    .scale(x)
-    .orient('bottom');
+var xAxis = d3.axisBottom(x);
 
 
 var chart = d3.select("#chart").append("svg")
@@ -29,7 +25,7 @@ var chart = d3.select("#chart").append("svg")
     .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
 
-var line = d3.svg.line()
+var line = d3.line()
 			.x(function (d) { 
 				//Necessary because the nest function automatically converts Dates to Strings when using them as keys
 				return x(new Date(d.key));
@@ -52,50 +48,50 @@ chart.append('g')
 
 window.onload = function () {
 
-	postData({ledger: null, fund: null}, 'load');
+	postData({ledger: 'All ledgers', fund: 'All funds'}, 'load');
 
 }
 
 function postData (params, dispatchEvent) {
 /*Handles AJAX calls with server. User selections posted to server; received data passed to dispatcher functions 
 	as determined by the dispatchEvent parameter*/
-	var req = $.post('/burndown-data', prop);
+	var req = $.post('/burndown-data', params);
 
 	req.done(function (body) {
-		var data = body.data,
-			maxAlloc = body.maxAlloc
-			options = body.options;
-
-	
-		dispatch.call(dispatchEvent, this, data, maxAlloc, options)
+		
+		dispatch.call(dispatchEvent, this, body)
 	});
 }
 
-dispatch.on('update.chart', function (data, maxAlloc, options) {
+dispatch.on('update.chart', function (body) {
 
-	formatY(maxAlloc);
+	formatY(body.maxAlloc);
 	
 	d3.select(".solidLine")
-      .attr("d", line(data));
+      .attr("d", line(body.data));
 
 });
 
-dispatch.on('load.chart', function (data, maxAlloc, options) {
+dispatch.on('load.chart', function (body) {
 
-	formatX(data);
-	formatY(maxAlloc);
+	//console.log(body)
+	formatX(body.data);
+	formatY(body.maxAlloc);
 	
-	drawLine(data, "solidLine");
+	drawLine(body.data, "solidLine");
 
 });
 
-function drawMenu (selection, options, className) {
+function drawMenu (selection, options, classKey) {
 	
-	selection.selectAll('option')
-				.data(options)
-				.enter()
+	
+
+	var menuItems = selection.selectAll('option')
+				.data(options, function (d) {
+					return d.key;
+				})				.enter()
 				.append('option')
-				.attr('class', className)
+				.attr('class', classKey + 'Options')
 				.text(function (d) {
 					return d.key;
 				})
@@ -104,38 +100,49 @@ function drawMenu (selection, options, className) {
 				});
 }
 
-dispatch.on("load.menus", function (data, maxAlloc, options) {
+function updateMenu (selection, options, classKey) {
+	
+	var menuItems = selection.selectAll('option')
+				.data(options, function (d) {
+					return d.key;
+				});
+
+	menuItems.exit().remove();
+	
+	menuItems.enter()
+			.append('option')
+			.attr('class', classKey + 'Options')
+			.text(function (d) {
+				return d.key;
+			})
+			.property('disabled', function (d) {
+				return d.value;
+			})
+			.merge(menuItems);
+}
+
+dispatch.on("load.menus", function (body) {
 
 	d3.select('#ledger')
 				.append('select')
-				.call(drawMenu, options.ledgers, 'ledgerOption')
+				.call(drawMenu, body.options.ledgers, 'ledger')
 				.on('change', function () {
-					dispatch.statechange({ledger: this.value, fund: null});
+					postData({ledger: this.value, fund: 'All funds'}, 'update');
 				});
 
 	d3.select('#fund')
 			.append('select')
-			.call(drawMenu, options.funds, 'fundOption')
+			.call(drawMenu, body.options.funds, 'fund')
 			.on('change', function () {
-				dispatch.statechange({ledger: d3.select('#ledger select').property('value'), fund: this.value});
+				postData({ledger: d3.select('#ledger select').property('value'), fund: this.value}, 'update');
 			});
 });
 
-dispatch.on('update.menus', function (data, maxAlloc, options) {
+dispatch.on('update.menus', function (body) {
 
 	
-	if (obj.key == 'LEDGER_NAME') {
-		var fundOptions = (obj.value == 'All ledgers') ? 
-			['All funds'].concat(d3.keys(fundDict)) : 
-			['All funds'].concat(ledgerDict[obj.value].funds);
-		
-		d3.selectAll(".fundOption").remove();
-
-		d3.select("#fund select")
-					.call(drawMenu, fundOptions, 'fundOption', function (d) {
-						return (d == 'All funds' || fundDict[d] > 0) ? false : true;
-					});
-	} 
+	d3.select("#fund select")
+		.call(updateMenu, body.options.funds, 'fund');
 		
 });
 
@@ -160,7 +167,7 @@ function formatY (maxAlloc) {
 function formatX (data) {
 
 	x.domain(d3.extent(data.map(function (d) {
-		return d[dateFields[0]];
+		return new Date(d.key);
 	})));
 
 	var axisX = d3.select(".xaxis").call(xAxis);
