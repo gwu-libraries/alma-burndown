@@ -127,6 +127,7 @@ dispatch.on("load.menus", function (body) {
 				.append('select')
 				.call(drawMenu, body.options.ledgers, 'ledger')
 				.on('change', function () {
+					d3.select('#fund select').property('value', 'All funds');
 					postData({ledger: this.value, fund: 'All funds'}, 'update');
 				});
 
