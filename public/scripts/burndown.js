@@ -1,43 +1,50 @@
 (function () {
+//wrapped as function to avoid loading variables into the global browser namespace
 
+//parameters for the SVG canvas
 var margin = {top: 20, right: 20, bottom: 150, left: 120},
     width = 1060 - margin.left - margin.right,
     height = 600 - margin.top - margin.bottom;
 
+//d3 formatting function for currency to two decimal places
 var dollars = d3.format('$,.2f');
 
+//amount = Y axis
 var y = d3.scaleLinear()
     .range([height, 0]);
 
+//status date (of invoice, etc.) on the X
 var x = d3.scaleTime()
     .range([0, width]);
 
+//initiatilze axes with d3 helper functions
 var yAxis = d3.axisLeft(y)
     .tickFormat(dollars);
 
 var xAxis = d3.axisBottom(x);
 
-
+// initialize the svg space
 var chart = d3.select("#chart").append("svg")
     .attr("width", width + margin.left + margin.right)
     .attr("height", height + margin.top + margin.bottom)
     .append("g")
     .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
-
+// d3 line helper object
 var line = d3.line()
 			.x(function (d) { 
 				//Necessary because the nest function automatically converts Dates to Strings when using them as keys
 				return x(new Date(d.key));
 			})
 			.y(function (d) {
-				//console.log(d)
+				//computed value for the cumulative total spent per date
 				return y(d.value.cumsum);
 			});
 
+//event handler
 var dispatch = d3.dispatch('load', 'update');
 
-
+//add axes to chart space
 chart.append('g')
         .attr('class', 'yaxis');
 
@@ -48,6 +55,9 @@ chart.append('g')
 
 window.onload = function () {
 
+	// TO DO: set up typeahead.js --> load dataset
+
+	//initial AJAX call
 	postData({ledger: 'All ledgers', fund: 'All funds'}, 'load');
 
 }
@@ -65,8 +75,10 @@ function postData (params, dispatchEvent) {
 
 dispatch.on('update.chart', function (body) {
 
+	//the Y scale will change depending on the total allocated to a selected ledger or fund
 	formatY(body.maxAlloc);
 	
+	//just pass the line helper function a new dataset
 	d3.select(".solidLine")
       .attr("d", line(body.data));
 
@@ -74,22 +86,24 @@ dispatch.on('update.chart', function (body) {
 
 dispatch.on('load.chart', function (body) {
 
-	//console.log(body)
+	// initialize the axes
 	formatX(body.data);
 	formatY(body.maxAlloc);
 	
+	// draw the initial line on the chart
 	drawLine(body.data, "solidLine");
 
 });
 
 function drawMenu (selection, options, classKey) {
-	
-	
+/*This function sets up the menus initially, populating them with data from the server.
+For menu options, key=string representing the ledger or fund, value=Boolean for disabling options with zero allocation*/
 
 	var menuItems = selection.selectAll('option')
 				.data(options, function (d) {
 					return d.key;
-				})				.enter()
+				})				
+				.enter()
 				.append('option')
 				.attr('class', classKey + 'Options')
 				.text(function (d) {
@@ -101,6 +115,7 @@ function drawMenu (selection, options, classKey) {
 }
 
 function updateMenu (selection, options, classKey) {
+/*Updates the menus with new options, based on the user's selection*/
 	
 	var menuItems = selection.selectAll('option')
 				.data(options, function (d) {
@@ -122,6 +137,7 @@ function updateMenu (selection, options, classKey) {
 }
 
 dispatch.on("load.menus", function (body) {
+/*Initialize each menu, including event handler triggered by user selection*/
 
 	d3.select('#ledger')
 				.append('select')
@@ -139,8 +155,9 @@ dispatch.on("load.menus", function (body) {
 			});
 });
 
-dispatch.on('update.menus', function (body) {
 
+dispatch.on('update.menus', function (body) {
+/*Only ever need to update the fund menu options, which depend on the selected ledger. Ledger options don't change.*/
 	
 	d3.select("#fund select")
 		.call(updateMenu, body.options.funds, 'fund');
@@ -149,6 +166,7 @@ dispatch.on('update.menus', function (body) {
 
 
 function drawLine (data, className) {
+/*Initialize the path in the chart*/
 
 	chart.append("path")
       .attr("class", className)
@@ -158,7 +176,7 @@ function drawLine (data, className) {
 
 function formatY (maxAlloc) {
 
-	
+	// Y domain corresponds to maximum allocation per fund/ledger
 	y.domain([0, maxAlloc]);
 
 	d3.select('.yaxis').call(yAxis)
@@ -167,13 +185,14 @@ function formatY (maxAlloc) {
 
 function formatX (data) {
 
+
+	//called initially to set the endpoints of the time span on X
 	x.domain(d3.extent(data.map(function (d) {
 		return new Date(d.key);
 	})));
 
 	var axisX = d3.select(".xaxis").call(xAxis);
 
-	// can we move this to the original axis set-up?
 	axisX.selectAll('text')
         .style('text-anchor', 'end')
         .attr('dx', '-.8em')

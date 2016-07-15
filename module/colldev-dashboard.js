@@ -10,12 +10,11 @@ const amount = 'AMOUNT',
 	pathName = './public/data/';
 
 // data file names stored in external file
-
 var filenames = require('./filenames.json');
 
+// store ledger and fund allocations in internal memory for fast lookup and to populate menus
 var optionsDict;
 
-// store ledger and fund allocations in internal memory for fast lookup and to populate menus
 
 // for formatting/parsing the date fields
 var dateParser = d3.timeParse("%Y-%m-%d %H:%M:%S"),
@@ -41,19 +40,20 @@ function stringsToNum(d, cells) {
 }
 
 function reduceUtil (prev, curr, i) {
+/*For populating the menu options object. Object must support lookup by both fund and ledger.*/
 
 	this[curr[fundKey]] = +curr[allocation];	// for each fund, store that as the key to its allocation for quick lookup
 
 	var fund = {key: curr[fundKey], 
-				value: (this[curr[fundKey]] > 0) ? false : true};
+				value: (this[curr[fundKey]] > 0) ? false : true};  // if the fund has no allocation, don't let it be selected
 
-	prev[0].total += +curr[allocation]; // running total for the all ledgers (for setting the scale of the chart)
-	prev[0].funds.push(fund)
+	prev[0].total += +curr[allocation]; // running total for the all ledgers (for setting the scale of the chart), stored under the default option
+	prev[0].funds.push(fund);	
 
 	if (prev[prev.length-1].key != curr[ledgerKey]) {	// haven't seen this ledger before: 
-		funds = [{key: 'All funds', value: false}, fund]
-		prev[prev.length-1].value = (prev[prev.length-1].total > 0) ? false : true;
-		prev.push({key: curr[ledgerKey], value: fund.value, total: +curr[allocation], funds: funds});
+		funds = [{key: 'All funds', value: false}, fund]	//The first entry in its list of funds will be the default
+		prev[prev.length-1].value = (prev[prev.length-1].total > 0) ? false : true; // set the availability of the previous based on its cumulative total
+		prev.push({key: curr[ledgerKey], value: fund.value, total: +curr[allocation], funds: funds}); // add this ledger to the list
 			
 	}
 
@@ -84,6 +84,8 @@ function optionsDictObj (data) {
 }
 
 optionsDictObj.prototype.getLedgerFunds = function (ledger) {
+	
+	//supports quick retrieval of the funds associated with each ledger 
 	return this.ledgers.find(function (d) {
 		return d.key == ledger;
 	})
@@ -95,21 +97,22 @@ exports.filterData = function (data, dateKey, params) {
 	var maxAlloc,
 		aggData;
 
-	// need to filter the invoice table on "PARENT_FUND," not "FUND_NAME," since invoices are captured at the reporting level	
+	// The default position
 	if (params.ledger == 'All ledgers' && params.fund == 'All funds') {
 		
 		maxAlloc = optionsDict.ledgers[0].total;
 		aggData = rollUpByDate(data, dateKey, maxAlloc);
 		
 	}
+	// a particular fund has been selected
+	else if (params.fund != 'All funds') { 
+	// need to filter the invoice table on "PARENT_FUND," not "FUND_NAME," since invoices are captured at the reporting level	
 
-	else if (params.fund != 'All funds') {
-		
 		maxAlloc = optionsDict[params.fund];
 		aggData = rollUpByDate(filterUtil(data, {key: 'PARENT_FUND', value: params.fund}), dateKey, maxAlloc);
 		
 	}
-
+	// a particular ledger has been selected
 	else {
 		
 		maxAlloc = optionsDict.getLedgerFunds(params.ledger).total;
@@ -120,16 +123,20 @@ exports.filterData = function (data, dateKey, params) {
 }
  
 function filterUtil (data, filterDict) { 
+	/*filters the invoice table by the provided column name and value
+	TO DO: implement in postgres*/
+
 	var filteredData = data.filter(function (d) {
 			return d[filterDict.key] == filterDict.value;
 		});
-	//console.log(filteredData);
+
 	return filteredData;
 
 }
 
 function rollUpByDate (data, dateKey, maxAlloc) {
-	/*Groups the data by date and sums over the amount field */
+	/*Groups the data by date and sums over the amount field 
+	TO DO: Implement this in postgres?*/
 	var nest = d3.nest()
 			.key(function (d) {
 				return keyFormatter(d[dateKey]);
@@ -144,7 +151,7 @@ function rollUpByDate (data, dateKey, maxAlloc) {
 			});
 
 	data = nest.entries(data);
-	//console.log(data)
+
 	cumSum = 0;
 	data.forEach(function (d, i) {
 		cumSum += d.value.sum;	
@@ -155,7 +162,8 @@ function rollUpByDate (data, dateKey, maxAlloc) {
 } 
 
 exports.loadData = function (callback) {	
-	/* loads the CSV ledger data file and builds the dict of ledgers and funds (for the menus) */
+	/* loads the CSV ledger data file and builds the dict of ledgers and funds (for the menus)
+	TO DO: replace by call to postgres database */
 
 	fs.readFile(pathName + filenames['ledgers'], 'utf-8', function (err, result) {
 		
