@@ -1,190 +1,138 @@
-var d3 = require('d3'),
-	fs = require('fs');
+//Version 2. July 20, 2016. Re-writing with an object for each dataset.
+// Initializing the object will perform the requisite queries.
+"use strict"
+var pgp = require('pg-promise')(),
+	queries = require('./queries.json');
+
+
+//initialize PG database connection
+var pgDb = pgp(queries.connection);
 
 // define column names as constants for ease of adjustment later
-const amount = 'AMOUNT',
-	allocation = 'CURRENT_ALLOCATION',
-	ledgerKey = 'LEDGER_NAME',
-	fundKey = 'FUND_NAME',
-	dateFields = ['INVOICE_STATUS_DATE', 'INVOICE_DATE'],
+const amount = 'amount',
+	fAlloc = 'fund_allocation',
+	lAlloc = 'ledger_allocation',
+	leKey = 'ledger_name',
+	fuKey = 'fund_name',
+	dateFields = ['invoice_status_date', 'invoice_date'],
 	pathName = './public/data/';
-
-// data file names stored in external file
-var filenames = require('./filenames.json');
-
-// store ledger and fund allocations in internal memory for fast lookup and to populate menus
-var optionsDict;
-
-
-// for formatting/parsing the date fields
-var dateParser = d3.timeParse("%Y-%m-%d %H:%M:%S"),
-	keyFormatter = d3.timeFormat('%Y-%m-%d');
 
 var exports = module.exports = {};
 
-function parseDates (d) {
-	/* Utility function to convert strings to dates objects. Accepts an object corresponding to a row in a data table */	
-	dateFields.forEach(function (dateKey) {
-		d[dateKey] = new Date(d[dateKey]);
-	});
+//using ES6 classes for clarity
+exports.LedgersFunds = class {
+/*Runs query to populate the dataset of menu options. Stores in memory for speed of lookup.*/
 
-	return d;
-}
+	constructor(dataDict) {
+		Object.keys(dataDict).forEach((k) => {
+			this[k] = dataDict[k]; 				// cycle through the dict of men items and add them to the obj's properties
+		}, this);
 
-function stringsToNum(d, cells) {
-	/*utility func to convert strings to numbers. Accepts an object corresponding to a row in a data table and an array of cells to modify*/
-	cells.forEach(function (c) {
-			d[c] = +d[c];
-		});
-	return d;
-}
+		return this;
+	}
 
-function reduceUtil (prev, curr, i) {
-/*For populating the menu options object. Object must support lookup by both fund and ledger.*/
+	static loadData(options) {
+		/*using static method to load data prior to intialization
+		see http://stackoverflow.com/questions/24398699/is-it-bad-practice-to-have-a-constructor-function-return-a-promise*/
+		//acceptions option parameter = fiscal year
+		if (arguments.length > 0) {
+			let fiscalYear = arguments[0];
+		
+		//returns a thenable with the data object created from the query results. This ensures that the LedgersFunds instance won't be initialized until the query has been completed.
+		return pgDb.any({text: queries['ledgersWithParam'],
+					values: [fiscalYear]})
+			.then((data) => {
+				return this.processData(data); 
+				// this construction is necessary to preserve the class scope: http://stackoverflow.com/questions/34930771/why-is-this-undefined-inside-class-method-when-using-promises
+			})
+			.catch((e) => {
+				console.log(e);
+			});
+		}
+		else {
+			return pgDb.any(queries['ledgers'])
+				.then((data) => {
+					return this.processData(data);
+				})
+				.catch((e) => {
+					console.log(e);
+				});
+		}
 
-	this[curr[fundKey]] = +curr[allocation];	// for each fund, store that as the key to its allocation for quick lookup
+	} 
 
-	var fund = {key: curr[fundKey], 
-				value: (this[curr[fundKey]] > 0) ? false : true};  // if the fund has no allocation, don't let it be selected
+	static processData (data) {
+	/*Populates a dict-like object with the results of th query, with keys for quick look-up of ledgers and funds, each of which returns an object for consumption by D3 methods*/
 
-	prev[0].total += +curr[allocation]; // running total for the all ledgers (for setting the scale of the chart), stored under the default option
-	prev[0].funds.push(fund);	
+		// the default value for all ledgers needs to contain the total across all ledgers/funds
+		let dataDict = {};
 
-	if (prev[prev.length-1].key != curr[ledgerKey]) {	// haven't seen this ledger before: 
-		funds = [{key: 'All funds', value: false}, fund]	//The first entry in its list of funds will be the default
-		prev[prev.length-1].value = (prev[prev.length-1].total > 0) ? false : true; // set the availability of the previous based on its cumulative total
-		prev.push({key: curr[ledgerKey], value: fund.value, total: +curr[allocation], funds: funds}); // add this ledger to the list
+		//stores the complete list of ledgers for the ledgers menu
+		dataDict.ledgers = [{key: 'All ledgers', value: 0}];
+
+		data.forEach((d) => {
+			//each fund key gets assigned an object bearing its name and its total allocation
+			 let fund = {key: d[fuKey], value: +d[fAlloc]};
+			 dataDict[d[fuKey]] = fund;
+
+			// if this is the first time seeing this ledger, assign its total and initialize the array of its associated funds
+			if (!dataDict[d[leKey]]) {
+				let ledger = {key: d[leKey], value: +d[lAlloc]};
+				dataDict.ledgers.push(ledger);
+
+				dataDict[d[leKey]] = [{key: 'All funds', value: +d[lAlloc]}, fund]; 
+
+				dataDict.ledgers[0].value += +d[lAlloc]; // increment the default total (across all ledgers)
+			}
 			
+			// each ledger key also returns a list of associated funds
+			else dataDict[d[leKey]].push(fund); 
+		});
+		
+		dataDict['All ledgers'] = [{key: 'All funds', value: dataDict.ledgers[0].value}];
+
+		return dataDict;
 	}
 
-	else {
-		prev[prev.length-1].total += +curr[allocation];	// increment running total
-		prev[prev.length-1].funds.push(fund);	// add to the list of funds	
-	}
-
-	return prev;
 }
 
-function optionsDictObj (data) {
-	/* input to this func should be an array of objects, where values consist of funds (in Voyager 9, at the "Allocated" level), plus the associated net allocation for the year and the associated ledger name.
 
-	This function stores in a map (using the d3.map function -- see https://github.com/d3/d3-collection/blob/master/README.md#maps) the total allocation on a given ledger and the relevant funds
-	*/
-	data = data.sort(function (a, b) {			// first sort the array by ledger name
-		return d3.ascending(a[ledgerKey], b[ledgerKey]);
-	});
-
-	this.ledgers = [{key: 'All ledgers', value: false, total: 0, funds: [{key: 'All funds', value: false}]}]
-	
-	// arrays for quick lookup of the total allocation at each level
-
-	this.ledgers = data.reduce(reduceUtil.bind(this), this.ledgers);
-
-	return this;
-}
-
-optionsDictObj.prototype.getLedgerFunds = function (ledger) {
-	
-	//supports quick retrieval of the funds associated with each ledger 
-	return this.ledgers.find(function (d) {
-		return d.key == ledger;
-	})
-}
-
-exports.filterData = function (data, dateKey, params) {
-/* Filters the invoice-level data on either fund or ledger, returns the filtered data + the total allocation at that level*/
-	//console.log(data[0])
-	var maxAlloc,
-		aggData;
+exports.getInvoiceData = function (params) {
+/*runs query on postgres backend to filter results by ledger/fund parameter and to roll up the results by date */
+/* returns a thenable to the server function */
 
 	// The default position
 	if (params.ledger == 'All ledgers' && params.fund == 'All funds') {
 		
-		maxAlloc = optionsDict.ledgers[0].total;
-		aggData = rollUpByDate(data, dateKey, maxAlloc);
-		
+		return pgDb.any(queries.inv_stat_date_all);
+
 	}
 	// a particular fund has been selected
 	else if (params.fund != 'All funds') { 
 	// need to filter the invoice table on "PARENT_FUND," not "FUND_NAME," since invoices are captured at the reporting level	
 
-		maxAlloc = optionsDict[params.fund];
-		aggData = rollUpByDate(filterUtil(data, {key: 'PARENT_FUND', value: params.fund}), dateKey, maxAlloc);
+		return pgDb.any({text: queries.inv_stat_date_fund,
+						values: [params.ledger, params.fund]});
 		
 	}
+
 	// a particular ledger has been selected
 	else {
 		
-		maxAlloc = optionsDict.getLedgerFunds(params.ledger).total;
-		aggData = rollUpByDate(filterUtil(data, {key: 'LEDGER_NAME', value: params.ledger}), dateKey, maxAlloc);
+		return pgDb.any({text: queries.inv_stat_date_ledg,
+						values: [params.ledger]});
 	}
 
-	return [aggData, maxAlloc];
+}
+
+exports.postProcess = function (data, total) {
+/*helper function to convert the cumulative total spent into a debit against the total allocation  */	
+	return data.map((d) => {
+		d.key = d.inv_date;
+		d.value = total - +d.cumsum;
+		return d;
+	});
 }
  
-function filterUtil (data, filterDict) { 
-	/*filters the invoice table by the provided column name and value
-	TO DO: implement in postgres*/
 
-	var filteredData = data.filter(function (d) {
-			return d[filterDict.key] == filterDict.value;
-		});
-
-	return filteredData;
-
-}
-
-function rollUpByDate (data, dateKey, maxAlloc) {
-	/*Groups the data by date and sums over the amount field 
-	TO DO: Implement this in postgres?*/
-	var nest = d3.nest()
-			.key(function (d) {
-				return keyFormatter(d[dateKey]);
-			})
-			.sortKeys(function (a, b) {
-				return new Date(a) - new Date(b);
-			})
-			.rollup(function (leaves) {
-				return {sum: d3.sum(leaves, function (d) {
-					return d[amount];
-				})};
-			});
-
-	data = nest.entries(data);
-
-	cumSum = 0;
-	data.forEach(function (d, i) {
-		cumSum += d.value.sum;	
-		d.value.cumsum = maxAlloc - cumSum;
-	});
-
-	return data;
-} 
-
-exports.loadData = function (callback) {	
-	/* loads the CSV ledger data file and builds the dict of ledgers and funds (for the menus)
-	TO DO: replace by call to postgres database */
-
-	fs.readFile(pathName + filenames['ledgers'], 'utf-8', function (err, result) {
-		
-		if (err) console.log(err);
-
-		var ledgers = d3.csvParse(result);
-		
-		optionsDict = new optionsDictObj(ledgers);
-
-		fs.readFile(pathName + filenames['invoices'], 'utf-8', function (err, result) {
-			
-			if (err) console.log(err)
-
-			var invoices = d3.csvParse(result, function (d) {		// using the row function to turn the AMOUNT into a number
-				d = parseDates(d);
-				return stringsToNum(d, [amount]);
-			});
-
-			callback(optionsDict, invoices);
-
-		});
-	});
-}
 

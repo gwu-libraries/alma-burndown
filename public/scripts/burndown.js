@@ -33,12 +33,11 @@ var chart = d3.select("#chart").append("svg")
 // d3 line helper object
 var line = d3.line()
 			.x(function (d) { 
-				//Necessary because the nest function automatically converts Dates to Strings when using them as keys
 				return x(new Date(d.key));
 			})
 			.y(function (d) {
 				//computed value for the cumulative total spent per date
-				return y(d.value.cumsum);
+				return y(d.value);
 			});
 
 //event handler
@@ -68,7 +67,6 @@ function postData (params, dispatchEvent) {
 	var req = $.post('/burndown-data', params);
 
 	req.done(function (body) {
-		
 		dispatch.call(dispatchEvent, this, body)
 	});
 }
@@ -110,7 +108,7 @@ For menu options, key=string representing the ledger or fund, value=Boolean for 
 					return d.key;
 				})
 				.property('disabled', function (d) {
-					return d.value;
+					return d.value <= 0;
 				});
 }
 
@@ -131,7 +129,7 @@ function updateMenu (selection, options, classKey) {
 				return d.key;
 			})
 			.property('disabled', function (d) {
-				return d.value;
+				return d.value <= 0;
 			})
 			.merge(menuItems);
 }
@@ -148,6 +146,7 @@ dispatch.on("load.menus", function (body) {
 				});
 
 	d3.select('#fund')
+			.style('visibility', 'hidden')
 			.append('select')
 			.call(drawMenu, body.options.funds, 'fund')
 			.on('change', function () {
@@ -159,9 +158,15 @@ dispatch.on("load.menus", function (body) {
 dispatch.on('update.menus', function (body) {
 /*Only ever need to update the fund menu options, which depend on the selected ledger. Ledger options don't change.*/
 	
-	d3.select("#fund select")
-		.call(updateMenu, body.options.funds, 'fund');
-		
+	if (d3.select('#ledger select').property('value') != 'All ledgers') {
+		d3.select("#fund select")
+			.style('visibility', 'visible')
+			.call(updateMenu, body.options.funds, 'fund');
+		}
+
+	else {
+		d3.select('#fund select').style('visibility', 'hidden');
+	}
 });
 
 

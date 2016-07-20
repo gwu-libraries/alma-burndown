@@ -1,0 +1,11 @@
+{	"connection": {"host": "localhost",
+					"port": 5432,
+					"database": "colldev_db",
+					"user": "colldev",
+					"password": "GWL1br@r13s"
+	},
+	"ledgers": "select ledger_name, fund_name, current_allocation as fund_allocation, sum(current_allocation) over (partition by ledger_name) as ledger_allocation from ledgers",
+	"ledgersWithParam": "select ledger_name, fund_name, current_allocation as fund_allocation, sum(current_allocation) over (partition by ledger_name) as ledger_allocation from ledgers where fiscal_period_name = $1",
+	"inv_stat_date_ledg": "with win_fun as (select date_trunc('day', invoice_status_date) as inv_date, amount from invoices where ledger_name like $1) select inv_date, sum(sum(amount)) over (order by inv_date asc) as cumsum from win_fun group by inv_date",
+	"inv_stat_date_fund": "with win_fun as (select date_trunc('day', invoice_status_date) as inv_date, amount from invoices where ledger_name like $1 and parent_fund like $2) select inv_date, sum(sum(amount)) over (order by inv_date asc) as cumsum from win_fun group by inv_date",
+	"inv_stat_date_all": "with win_fun as (select date_trunc('day', invoice_status_date) as inv_date, amount from invoices) select inv_date, sum(sum(amount)) over (order by inv_date asc) as cumsum from win_fun group by inv_date "}
