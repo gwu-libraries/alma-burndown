@@ -9,6 +9,11 @@ var margin = {top: 20, right: 20, bottom: 150, left: 120},
 //d3 formatting function for currency to two decimal places
 var dollars = d3.format('$,.2f');
 
+//start and end dates for the fiscal year
+// TO DO: replace by dynamic query on fundledger_vw (which contains the begin & end dates for the fiscal period)
+var yearStart = new Date('July 1, 2015'),
+	yearEnd = new Date('June 30, 2016)');
+
 //amount = Y axis
 var y = d3.scaleLinear()
     .range([height, 0]);
@@ -31,7 +36,7 @@ var chart = d3.select("#chart").append("svg")
     .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
 // d3 line helper object
-var line = d3.line()
+var line = d3.line().curve(d3.curveStepAfter)
 			.x(function (d) { 
 				return x(new Date(d.key));
 			})
@@ -77,8 +82,7 @@ dispatch.on('update.chart', function (body) {
 	formatY(body.maxAlloc);
 	
 	//just pass the line helper function a new dataset
-	d3.select(".solidLine")
-      .attr("d", line(body.data));
+	updateLine(body.data);
 
 });
 
@@ -89,7 +93,7 @@ dispatch.on('load.chart', function (body) {
 	formatY(body.maxAlloc);
 	
 	// draw the initial line on the chart
-	drawLine(body.data, "solidLine");
+	drawLine(body.data, "mainLine");
 
 });
 
@@ -197,14 +201,51 @@ dispatch.on('update.menus', function (body) {
 	setDefault();
 });
 
+function endPoints (data) {
+// assumes the data has keys corresponding to dates for the x-axis, sorted in asc order
+// returns the data flanked by two additional sets of points for extending the line to the beginning and end of the fiscal year
+	var d0 = data[0],
+		d1 = data[data.length-1],
+		p0 = (new Date(d0.key) > yearStart) ? yearStart : d0.key,
+		p1 = (new Date(d1.key) < yearEnd) ? yearEnd : d1.key;
 
-function drawLine (data, className) {
+	return [[{key: p0, value: d0.value}, {key: d0.key, value: d0.value}], 
+			data,
+			[{key: d1.key, value: d1.value}, {key: p1, value: d1.value}]];
+}
+
+
+function drawLine (data) {
 /*Initialize the path in the chart*/
 
-	chart.append("path")
-      .attr("class", className)
+	var extendedData = endPoints(data);
+
+	chart.selectAll(".line")
+			.data(extendedData)
+			.enter()
+ 			.append('path')
+ 			.attr("class", function (d, i) {
+ 				if (i == 1) {
+ 					return 'mainLine';
+ 				}
+ 				else {
+ 					console.log(d);
+ 					return 'endLine';
+ 				}
+ 			})
+      		.attr("d", function (d) {
+      			return line(d)
+      		});
+}
+
+function updateLine (data) {
+
+	d3.select(".mainLine")
       .attr("d", line(data));
 
+    //endPointData = ;
+
+    //d3.selectAll('.endLine').data(endPoints(data))
 }
 
 function formatY (maxAlloc) {
