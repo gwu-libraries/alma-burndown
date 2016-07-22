@@ -103,13 +103,14 @@ For menu options, key=string representing the ledger or fund, value=Boolean for 
 				})				
 				.enter()
 				.append('option')
-				.attr('class', classKey + 'Options')
+				.attr('class', classKey)
 				.text(function (d) {
 					return d.key;
 				})
 				.property('disabled', function (d) {
 					return d.value <= 0;
 				});
+
 }
 
 function updateMenu (selection, options, classKey) {
@@ -124,14 +125,37 @@ function updateMenu (selection, options, classKey) {
 	
 	menuItems.enter()
 			.append('option')
-			.attr('class', classKey + 'Options')
+			.attr('class', classKey)
 			.text(function (d) {
-				return d.key;
+					return d.key;
 			})
 			.property('disabled', function (d) {
 				return d.value <= 0;
 			})
 			.merge(menuItems);
+
+}
+
+function setDefault () {
+
+	d3.selectAll('option')
+		.filter(function (d) {
+			return (d.key == 'All funds') || (d.key == 'All ledgers');
+		})
+		.text(function (d) {
+			if (d3.select(this).property('selected')) {
+				return 'Select a ' + d3.select(this).attr('class');
+			}
+			else return d.key;
+		});
+
+}
+
+function getSelected (classKey) {
+	var node = d3.selectAll('.' + classKey).filter(function (d) {
+		return this.selected;
+	});
+	return node.datum().key;
 }
 
 dispatch.on("load.menus", function (body) {
@@ -141,8 +165,9 @@ dispatch.on("load.menus", function (body) {
 				.append('select')
 				.call(drawMenu, body.options.ledgers, 'ledger')
 				.on('change', function () {
-					d3.select('#fund select').property('value', 'All funds');
-					postData({ledger: this.value, fund: 'All funds'}, 'update');
+					var ledger = getSelected('ledger');
+					//d3.select('#fund select').property('value', 'All funds');
+					postData({ledger: ledger, fund: 'All funds'}, 'update');
 				});
 
 	d3.select('#fund')
@@ -150,7 +175,8 @@ dispatch.on("load.menus", function (body) {
 			.append('select')
 			.call(drawMenu, body.options.funds, 'fund')
 			.on('change', function () {
-				postData({ledger: d3.select('#ledger select').property('value'), fund: this.value}, 'update');
+				var fund = getSelected('fund');
+				postData({ledger: getSelected('ledger'), fund: fund}, 'update');
 			});
 });
 
@@ -167,6 +193,8 @@ dispatch.on('update.menus', function (body) {
 	else {
 		d3.select('#fund select').style('visibility', 'hidden');
 	}
+
+	setDefault();
 });
 
 
