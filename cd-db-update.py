@@ -44,22 +44,25 @@ queries = {}
 #Query to fetch the allocated-level funds, for tracking both the net allocation (CURRENT_ALLOCATION) 
 # plus existing commitments (PO's that haven't been invoiced)
 # Using the FUNDLEDGER_VW.FISCAL_PERIOD_START on all these queries to select the relevant ledgers
+# The aggregate functions are used here because occasionally the same allocation fund name will appear under multiple summary funds on the same ledger, with different amounts associated with each
 
 queries['ledgers'] = '''
 select  
-    current_allocation,
+    sum(current_allocation) as current_allocation,
     fund_name,
     fiscal_period_name,
     ledger_name, 
-    commit_pending,
-    commitments,
-    expend_pending,
-    expenditures
+    sum(commit_pending) as commit_pending,
+    sum(commitments) as commitments,
+    sum(expend_pending) as expend_pending,
+    sum(expenditures) as expenditures
 from fundledger_vw flvw
 where
     (flvw.fiscal_period_name like 'GW%') 
         and (flvw.fund_category = 'Allocated') 
         and (flvw.fiscal_period_start >= to_date('07-01-2015', 'mm-dd-YYYY'))
+group by
+    fund_name, fiscal_period_name, ledger_name
 '''
 
 #Invoices query, using the invoice_line_item tables to link purchase order, invoice, line item, and fund
