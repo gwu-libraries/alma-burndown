@@ -12,7 +12,7 @@ var dollars = d3.format('$,.2f');
 //start and end dates for the fiscal year
 // TO DO: replace by dynamic query on fundledger_vw (which contains the begin & end dates for the fiscal period)
 var yearStart = new Date('July 1, 2015'),
-	yearEnd = new Date('June 30, 2016)');
+	yearEnd = new Date('June 30, 2016');
 
 //amount = Y axis
 var y = d3.scaleLinear()
@@ -81,8 +81,7 @@ dispatch.on('update.chart', function (body) {
 	//the Y scale will change depending on the total allocated to a selected ledger or fund
 	formatY(body.maxAlloc);
 	
-	//just pass the line helper function a new dataset
-	updateLine(body.data);
+
 
 });
 
@@ -93,7 +92,6 @@ dispatch.on('load.chart', function (body) {
 	formatY(body.maxAlloc);
 	
 	// draw the initial line on the chart
-	drawLine(body.data, "mainLine");
 
 });
 
@@ -141,7 +139,7 @@ function updateMenu (selection, options, classKey) {
 }
 
 function setDefault () {
-
+	//set the default text for the menus, using different language if the 'All' option has been selected
 	d3.selectAll('option')
 		.filter(function (d) {
 			return (d.key == 'All funds') || (d.key == 'All ledgers');
@@ -156,10 +154,11 @@ function setDefault () {
 }
 
 function getSelected (classKey) {
+	//helper function to return to the currently selected menu item
 	var node = d3.selectAll('.' + classKey).filter(function (d) {
 		return this.selected;
 	});
-	return node.datum().key;
+	return node.datum();
 }
 
 dispatch.on("load.menus", function (body) {
@@ -169,7 +168,7 @@ dispatch.on("load.menus", function (body) {
 				.append('select')
 				.call(drawMenu, body.options.ledgers, 'ledger')
 				.on('change', function () {
-					var ledger = getSelected('ledger');
+					var ledger = getSelected('ledger').key;
 					//d3.select('#fund select').property('value', 'All funds');
 					postData({ledger: ledger, fund: 'All funds'}, 'update');
 				});
@@ -179,9 +178,13 @@ dispatch.on("load.menus", function (body) {
 			.append('select')
 			.call(drawMenu, body.options.funds, 'fund')
 			.on('change', function () {
-				var fund = getSelected('fund');
-				postData({ledger: getSelected('ledger'), fund: fund}, 'update');
+				var fund = getSelected('fund').key;
+				postData({ledger: getSelected('ledger').key, fund: fund}, 'update');
 			});
+
+	drawLine(body.data
+		);
+
 });
 
 
@@ -199,19 +202,32 @@ dispatch.on('update.menus', function (body) {
 	}
 
 	setDefault();
+		//just pass the line helper function a new dataset
+	updateLine(body.data);
 });
 
 function endPoints (data) {
-// assumes the data has keys corresponding to dates for the x-axis, sorted in asc order
+// if the data is empty for this set, return a set with endpoints at the fiscal year boundaries
 // returns the data flanked by two additional sets of points for extending the line to the beginning and end of the fiscal year
-	var d0 = data[0],
-		d1 = data[data.length-1],
-		p0 = (new Date(d0.key) > yearStart) ? yearStart : d0.key,
-		p1 = (new Date(d1.key) < yearEnd) ? yearEnd : d1.key;
+//need to fetch the allocation amount from the current fund (menu option)
+	var fund = getSelected('fund');
 
-	return [[{key: p0, value: d0.value}, {key: d0.key, value: d0.value}], 
-			data,
-			[{key: d1.key, value: d1.value}, {key: p1, value: d1.value}]];
+	if (data.length == 0) {	
+		return [[{key: yearStart, value:fund.value}, {key: yearEnd, value:fund.value}]];
+	}
+	else if (data.length == 1) {
+		return [[{key: yearStart, value:fund.value}, data[0]], [data[0], {key: yearEnd, value: data[0].value}]];
+	}
+	else {
+		var d0 = data[0],	// earliest date in the dateset
+			d1 = data[data.length-1], // lastest date
+			p0 = (new Date(d0.key) > yearStart) ? yearStart : d0.key, // is this after the fiscal year start?
+			p1 = (new Date(d1.key) < yearEnd) ? yearEnd : d1.key; // is this before the fy end?
+
+		return [[{key: p0, value: fund.value}, {key: d0.key, value: d0.value}], 
+				data,
+				[{key: d1.key, value: d1.value}, {key: p1, value: d1.value}]];
+	}
 }
 
 
@@ -226,11 +242,10 @@ function drawLine (data) {
  			.append('path')
  			.attr("class", function (d, i) {
  				if (i == 1) {
- 					return 'mainLine';
+ 					return 'line mainLine';
  				}
  				else {
- 					console.log(d);
- 					return 'endLine';
+ 					return 'line endLine';
  				}
  			})
       		.attr("d", function (d) {
@@ -240,12 +255,28 @@ function drawLine (data) {
 
 function updateLine (data) {
 
-	d3.select(".mainLine")
-      .attr("d", line(data));
+	var extendedData = endPoints(data);
 
-    //endPointData = ;
+	var lines = chart.selectAll(".line");
+	      
+	lines.remove()
 
-    //d3.selectAll('.endLine').data(endPoints(data))
+    chart.selectAll(".line")
+    	.data(extendedData)
+    	.enter()
+ 		.append('path')
+ 		.attr("class", function (d, i) {
+ 			if (i == 1) {
+ 				return 'line mainLine';
+ 			}
+ 			else {
+ 				return 'line endLine';
+ 			}
+ 		})
+      	.attr("d", function (d) {
+      		return line(d)
+      	});
+
 }
 
 function formatY (maxAlloc) {

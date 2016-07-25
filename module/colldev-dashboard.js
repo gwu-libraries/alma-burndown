@@ -10,12 +10,17 @@ var pgDb = pgp(queries.connection);
 
 // define column names as constants for ease of adjustment later
 const amount = 'amount',
-	fAlloc = 'fund_allocation',
-	lAlloc = 'ledger_allocation',
+	fAll = 'fund_allocation',
+	lAll = 'ledger_allocation',
+	fComm = 'fund_commits',
+	lComm = 'ledger_commits',
 	leKey = 'ledger_name',
 	fuKey = 'fund_name',
 	dateFields = ['invoice_status_date', 'invoice_date'],
 	pathName = './public/data/';
+
+//default value 
+var fiscalYear = 'GW 2016/2017';
 
 var exports = module.exports = {};
 
@@ -36,10 +41,10 @@ exports.LedgersFunds = class {
 		see http://stackoverflow.com/questions/24398699/is-it-bad-practice-to-have-a-constructor-function-return-a-promise*/
 		//acceptions option parameter = fiscal year
 		if (arguments.length > 0) {
-			let fiscalYear = arguments[0];
-		
+			fiscalYear = arguments[0];
+		}
 		//returns a thenable with the data object created from the query results. This ensures that the LedgersFunds instance won't be initialized until the query has been completed.
-		return pgDb.any({text: queries['ledgersWithParam'],
+		return pgDb.any({text: queries['ledgers'],
 					values: [fiscalYear]})
 			.then((data) => {
 				return this.processData(data); 
@@ -48,18 +53,7 @@ exports.LedgersFunds = class {
 			.catch((e) => {
 				console.log(e);
 			});
-		}
-		else {
-			return pgDb.any(queries['ledgers'])
-				.then((data) => {
-					return this.processData(data);
-				})
-				.catch((e) => {
-					console.log(e);
-				});
-		}
-
-	} 
+	}
 
 	static processData (data) {
 	/*Populates a dict-like object with the results of th query, with keys for quick look-up of ledgers and funds, each of which returns an object for consumption by D3 methods*/
@@ -68,28 +62,28 @@ exports.LedgersFunds = class {
 		let dataDict = {};
 
 		//stores the complete list of ledgers for the ledgers menu
-		dataDict.ledgers = [{key: 'All ledgers', value: 0}];
+		dataDict.ledgers = [{key: 'All ledgers', value: 0, commits: 0}];
 
 		data.forEach((d) => {
 			//each fund key gets assigned an object bearing its name and its total allocation
-			 let fund = {key: d[fuKey], value: +d[fAlloc]};
-			 dataDict[d[fuKey]] = fund;
+			 let fund = {key: d[fuKey], value: +d[fAll], commits: +d[fComm]};
 
 			// if this is the first time seeing this ledger, assign its total and initialize the array of its associated funds
 			if (!dataDict[d[leKey]]) {
-				let ledger = {key: d[leKey], value: +d[lAlloc]};
+				let ledger = {key: d[leKey], value: +d[lAll], commits: +d[lComm]};
 				dataDict.ledgers.push(ledger);
 
-				dataDict[d[leKey]] = [{key: 'All funds', value: +d[lAlloc]}, fund]; 
+				dataDict[d[leKey]] = [{key: 'All funds', value: +d[lAll], commits: +d[lComm]}, fund]; 
 
-				dataDict.ledgers[0].value += +d[lAlloc]; // increment the default total (across all ledgers)
+				dataDict.ledgers[0].value += +d[lAll]; // increment the default total (across all ledgers)
+				dataDict.ledgers[0].commits += +d[lComm]; // increment the default total (across all ledgers)
 			}
 			
 			// each ledger key also returns a list of associated funds
 			else dataDict[d[leKey]].push(fund); 
 		});
 		
-		dataDict['All ledgers'] = [{key: 'All funds', value: dataDict.ledgers[0].value}];
+		dataDict['All ledgers'] = [{key: 'All funds', value: dataDict.ledgers[0].value, commits: dataDict.ledgers[0].commits}];
 
 		return dataDict;
 	}
@@ -104,7 +98,7 @@ exports.getInvoiceData = function (params) {
 	// The default position
 	if (params.ledger == 'All ledgers' && params.fund == 'All funds') {
 		
-		return pgDb.any(queries.inv_stat_date_all);
+		return pgDb.any(queries.inv_stat_date_all, [params.fiscal]);
 
 	}
 	// a particular fund has been selected
