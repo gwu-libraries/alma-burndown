@@ -4,7 +4,6 @@
 var pgp = require('pg-promise')(),
 	queries = require('./queries.json');
 
-
 //initialize PG database connection
 var pgDb = pgp(queries.connection);
 

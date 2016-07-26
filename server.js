@@ -3,14 +3,19 @@ var express = require('express'),
 	db = require('./module/colldev-dashboard.js'),
 	bodyParser = require('body-parser'),
 	cron = require('node-cron'),
-	child = require('child_process');
+	PythonShell = require('python-shell');
 
 //const dateFields = ['INVOICE_STATUS_DATE', 'INVOICE_DATE'];
-
 
 var options,
 	server,
 	fiscalYear = 'GW 2015/2016';
+
+var pyOptions = {
+	mode: 'text',
+	pythonPath: '/home/dsmith/voyager/VIR/bin/python',
+	scriptPath: './'
+};
 
 app.use(express.static('public'));
 app.use(bodyParser.text());
@@ -18,18 +23,23 @@ app.use(bodyParser.urlencoded({
     extended: true
 }));
 
-//starts up the server
-db.LedgersFunds.loadData(fiscalYear).then((data) => {
-			options = new db.LedgersFunds(data);
-			server = app.listen(3000);
-		})
-		.catch((e) => {
-			console.log(e);
-		})	
+startUp();
+
+function startUp () {
+	db.LedgersFunds.loadData(fiscalYear)
+			.then((data) => {
+				options = new db.LedgersFunds(data);
+				console.log('restarting server...')
+				server = app.listen(3000);
+			})
+			.catch((e) => {
+				console.log(e);
+			});
+}	
 
 //Node wrapper around cron scheduler
 //cron.schedule('* * * * Sun', function (){
-cron.schedule('* */15 * * * *', function (){
+cron.schedule('* */5 * * * *', function (){
   console.log('updating database')
   update();
 });
@@ -39,25 +49,12 @@ function update () {
 	
 	//close server connections while database updates are being made
 	server.close()
+	console.log('updating...')
 	//run the Python script as a Node child process
-	//the callback is executed upon returns
-	
-	py = child.spawn( '/home/dsmith/voyager/VIR/bin/python', ['./cd-db-update.py']);
-
-	py.stdout.on('data', (data) => {	
-		// the class has a static method for loading the data from the db backend, which return a thenable
-		// inside the thenable, we initialize the class, to make sure that the async db call has been completed before passing in the data
-		console.log(data)
-		db.LedgersFunds.loadData(fiscalYear).then((data) => {
-			options = new db.LedgersFunds(data);
-			server.listen(3000);
-		})
-		.catch((e) => {
-			console.log(e);
-		})	
+	PythonShell.run('cd-db-update.py', (err, results) => {
+		if (err) throw err;
+		startup();
 	});
-
-	
 }
 
 
