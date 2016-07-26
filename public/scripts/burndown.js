@@ -213,10 +213,10 @@ function endPoints (data) {
 	var fund = getSelected('fund');
 
 	if (data.length == 0) {	
-		return [[{key: yearStart, value:fund.value}, {key: yearEnd, value:fund.value}]];
+		return [[{key: yearStart, value:fund.value}, {key: yearEnd, value:fund.value - fund.commits}]];
 	}
 	else if (data.length == 1) {
-		return [[{key: yearStart, value:fund.value}, data[0]], [data[0], {key: yearEnd, value: data[0].value}]];
+		return [[{key: yearStart, value:fund.value}, data[0]], [data[0], {key: yearEnd, value: data[0].value - fund.commits}]];
 	}
 	else {
 		var d0 = data[0],	// earliest date in the dateset
@@ -226,7 +226,7 @@ function endPoints (data) {
 
 		return [[{key: p0, value: fund.value}, {key: d0.key, value: d0.value}], 
 				data,
-				[{key: d1.key, value: d1.value}, {key: p1, value: d1.value}]];
+				[{key: d1.key, value: d1.value}, {key: p1, value: d1.value - fund.commits}]];
 	}
 }
 
