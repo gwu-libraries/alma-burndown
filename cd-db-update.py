@@ -14,12 +14,12 @@ import os
 from datetime import datetime
 
 # set up logging for db calls
-logging.basicConfig()
+logging.basicConfig(filename='dashboard_' + datetime.today().strftime('%d-%m-%Y') +'.log', filemode='w')
 engine = sqlalchemy.create_engine(('postgresql://colldev:GWL1br@r13s@localhost:5432/colldev_db'))
 db_logger = logging.getLogger('sqlalchemy.engine')
 db_logger.setLevel(logging.INFO)
-handler = logging.FileHandler('dashboard_' + datetime.today().strftime('%d-%m-%Y') +'.log')
-db_logger.addHandler(handler)
+#handler = logging.FileHandler('dashboard_' + datetime.today().strftime('%d-%m-%Y') +'.log')
+#db_logger.addHandler(handler)
 
 # We do this to make sure that the Oracle client is using the right encoding
 os.environ["NLS_LANG"] = "AMERICAN_AMERICA.AL32UTF8"

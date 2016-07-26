@@ -2,7 +2,7 @@ var express = require('express'),
 	app = express(),
 	db = require('./module/colldev-dashboard.js'),
 	bodyParser = require('body-parser'),
-	cron = require('node-cron'),
+	CronJob = require('cron').CronJob,
 	PythonShell = require('python-shell');
 
 //const dateFields = ['INVOICE_STATUS_DATE', 'INVOICE_DATE'];
@@ -13,9 +13,10 @@ var options,
 
 var pyOptions = {
 	mode: 'text',
-	pythonPath: '/home/dsmith/voyager/VIR/bin/python',
+	pythonPath: '/home/dsmith/voyager/VGR/bin/python',
 	scriptPath: './'
 };
+
 
 app.use(express.static('public'));
 app.use(bodyParser.text());
@@ -29,8 +30,8 @@ function startUp () {
 	db.LedgersFunds.loadData(fiscalYear)
 			.then((data) => {
 				options = new db.LedgersFunds(data);
-				console.log('restarting server...')
 				server = app.listen(3000);
+				console.log('restarting server...')
 			})
 			.catch((e) => {
 				console.log(e);
@@ -38,22 +39,20 @@ function startUp () {
 }	
 
 //Node wrapper around cron scheduler
-//cron.schedule('* * * * Sun', function (){
-cron.schedule('* */5 * * * *', function (){
+//Appears to need a zero in the first slot, or else it starts up multiple times in a row
+new CronJob('00 00 24 * * 7', function (){
+  server.close()
   console.log('updating database')
   update();
-});
+}, null, true);
 
 
 function update () {
-	
-	//close server connections while database updates are being made
-	server.close()
-	console.log('updating...')
+
 	//run the Python script as a Node child process
-	PythonShell.run('cd-db-update.py', (err, results) => {
+	PythonShell.run('cd-db-update.py', pyOptions, (err, results) => {
 		if (err) throw err;
-		startup();
+		startUp();
 	});
 }
 
