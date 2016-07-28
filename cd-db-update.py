@@ -55,14 +55,16 @@ select
     sum(commit_pending) as commit_pending,
     sum(commitments) as commitments,
     sum(expend_pending) as expend_pending,
-    sum(expenditures) as expenditures
+    sum(expenditures) as expenditures,
+    fiscal_period_start,
+    fiscal_period_end
 from fundledger_vw flvw
 where
     (flvw.fiscal_period_name like 'GW%') 
         and (flvw.fund_category = 'Allocated') 
         and (flvw.fiscal_period_start >= to_date('07-01-2015', 'mm-dd-YYYY'))
 group by
-    fund_name, fiscal_period_name, ledger_name
+    fund_name, fiscal_period_name, ledger_name, fiscal_period_start, fiscal_period_end
 '''
 
 #Invoices query, using the invoice_line_item tables to link purchase order, invoice, line item, and fund

@@ -15,21 +15,32 @@ const amount = 'amount',
 	lComm = 'ledger_commits',
 	leKey = 'ledger_name',
 	fuKey = 'fund_name',
+	fiP = 'fiscal_period_name',
 	dateFields = ['invoice_status_date', 'invoice_date'],
 	pathName = './public/data/';
 
-//default value 
-var fiscalYear = 'GW 2016/2017';
-
 var exports = module.exports = {};
+
+exports.getFiscalPeriods = () => {
+	return pgDb.any({text: queries['fiscal_periods']})
+				.then( (data) => {
+					return data.map( (d) => {
+						// the key contains the name for menu display, the value > 0 turns on visibility, and the range is used for calculating start and end dates
+						return {key: d.fiscal_period_name, value: 1, range: [d.fiscal_period_start, d.fiscal_period_end]};
+					})
+				})
+				.catch( (err) => {
+					console.log(err);
+				})
+}
 
 //using ES6 classes for clarity
 exports.LedgersFunds = class {
 /*Runs query to populate the dataset of menu options. Stores in memory for speed of lookup.*/
 
 	constructor(dataDict) {
-		Object.keys(dataDict).forEach((k) => {
-			this[k] = dataDict[k]; 				// cycle through the dict of men items and add them to the obj's properties
+		Object.keys(dataDict).forEach( (k) => {
+			this[k] = dataDict[k]; 				// cycle through the dict of menu items and add them to the obj's properties
 		}, this);
 
 		return this;
@@ -38,66 +49,73 @@ exports.LedgersFunds = class {
 	static loadData(options) {
 		/*using static method to load data prior to intialization
 		see http://stackoverflow.com/questions/24398699/is-it-bad-practice-to-have-a-constructor-function-return-a-promise*/
-		//acceptions option parameter = fiscal year
-		if (arguments.length > 0) {
-			fiscalYear = arguments[0];
-		}
+
 		//returns a thenable with the data object created from the query results. This ensures that the LedgersFunds instance won't be initialized until the query has been completed.
-		return pgDb.any({text: queries['ledgers'],
-					values: [fiscalYear]})
-			.then((data) => {
-				return this.processData(data); 
-				// this construction is necessary to preserve the class scope: http://stackoverflow.com/questions/34930771/why-is-this-undefined-inside-class-method-when-using-promises
+		return pgDb.any({text: queries['ledgers']})
+			.then(this.processData)
+			.then( (data) => {
+				return data
 			})
-			.catch((e) => {
-				console.log(e);
-			});
+			.catch( (err) => {
+				console.log(err);
+			})
 	}
 
 	static processData (data) {
-	/*Populates a dict-like object with the results of th query, with keys for quick look-up of ledgers and funds, each of which returns an object for consumption by D3 methods*/
+	/*Populates a dict-like object with the results of the query, with keys for quick look-up of ledgers and funds, each of which returns an object for consumption by D3 methods*/
 
 		// the default value for all ledgers needs to contain the total across all ledgers/funds
 		let dataDict = {};
 
 		//stores the complete list of ledgers for the ledgers menu
-		dataDict.ledgers = [{key: 'All ledgers', value: 0, commits: 0}];
+		
 
-		data.forEach((d) => {
+		data.forEach( (d) => {
 			//each fund key gets assigned an object bearing its name and its total allocation
-			 let fund = {key: d[fuKey], value: +d[fAll], commits: +d[fComm]};
+			 
+			if ( !dataDict[d[fiP]] ) {
+				dataDict[d[fiP]] = {};
+				dataDict[d[fiP]].ledgers = [{key: 'All ledgers', value: 0, commits: 0}];; // initialize the list of ledgers for this fiscal period
+			}
+
+			let thisObj = dataDict[d[fiP]],		// for ease of reference
+				fund = {key: d[fuKey], value: +d[fAll], commits: +d[fComm]}; // data object for this fund
 
 			// if this is the first time seeing this ledger, assign its total and initialize the array of its associated funds
-			if (!dataDict[d[leKey]]) {
-				let ledger = {key: d[leKey], value: +d[lAll], commits: +d[lComm]};
-				dataDict.ledgers.push(ledger);
+			if ( !thisObj[d[leKey]] ) {
+				let ledger = {key: d[leKey], value: +d[lAll], commits: +d[lComm]}; // data object for this ledger
+				thisObj.ledgers.push(ledger);
 
-				dataDict[d[leKey]] = [{key: 'All funds', value: +d[lAll], commits: +d[lComm]}, fund]; 
+				thisObj[d[leKey]] = [{key: 'All funds', value: +d[lAll], commits: +d[lComm]}, fund]; 
 
-				dataDict.ledgers[0].value += +d[lAll]; // increment the default total (across all ledgers)
-				dataDict.ledgers[0].commits += +d[lComm]; // increment the default total (across all ledgers)
+				thisObj.ledgers[0].value += +d[lAll]; // increment the default total (across all ledgers)
+				thisObj.ledgers[0].commits += +d[lComm]; // increment the default total (across all ledgers)
 			}
 			
-			// each ledger key also returns a list of associated funds
-			else dataDict[d[leKey]].push(fund); 
+			// each ledger key returns a list of associated funds
+			else thisObj[d[leKey]].push(fund); 
 		});
 		
-		dataDict['All ledgers'] = [{key: 'All funds', value: dataDict.ledgers[0].value, commits: dataDict.ledgers[0].commits}];
+		Object.keys(dataDict).forEach( (k) => {
+			dataDict[k]['All ledgers'] = [{key: 'All funds', value: dataDict[k].ledgers[0].value, commits: dataDict[k].ledgers[0].commits}];
+		})
 
-		return dataDict;
+		return new Promise( (resolve, reject) => {
+			return resolve(dataDict);
+		});
 	}
 
 }
 
 
-exports.getInvoiceData = function (params) {
+exports.getInvoiceData = function (params, fiscalPeriod) {
 /*runs query on postgres backend to filter results by ledger/fund parameter and to roll up the results by date */
 /* returns a thenable to the server function */
 
 	// The default position
 	if (params.ledger == 'All ledgers' && params.fund == 'All funds') {
 		
-		return pgDb.any(queries.inv_stat_date_all, [params.fiscal]);
+		return pgDb.any(queries.inv_stat_date_all, [fiscalPeriod]);
 
 	}
 	// a particular fund has been selected
@@ -120,7 +138,7 @@ exports.getInvoiceData = function (params) {
 
 exports.postProcess = function (data, total) {
 /*helper function to convert the cumulative total spent into a debit against the total allocation  */	
-	return data.map((d) => {
+	return data.map( (d) => {
 		d.key = d.inv_date;
 		d.value = total - +d.cumsum;
 		return d;

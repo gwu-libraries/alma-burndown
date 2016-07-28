@@ -9,10 +9,6 @@ var margin = {top: 20, right: 20, bottom: 150, left: 120},
 //d3 formatting function for currency to two decimal places
 var dollars = d3.format('$,.2f');
 
-//start and end dates for the fiscal year
-// TO DO: replace by dynamic query on fundledger_vw (which contains the begin & end dates for the fiscal period)
-var yearStart = new Date('July 1, 2015'),
-	yearEnd = new Date('June 30, 2016');
 
 //amount = Y axis
 var y = d3.scaleLinear()
@@ -59,11 +55,25 @@ chart.append('g')
 
 window.onload = function () {
 
-	// TO DO: set up typeahead.js --> load dataset
+	//initial AJAX calls
 
-	//initial AJAX call
-	postData({ledger: 'All ledgers', fund: 'All funds'}, 'load');
+	//get fiscal period options
+	var req = $.post('/fiscal-periods');
 
+	req.done(function (body) {
+			
+			d3.select('#fiscalPeriod')
+			.append('select')
+			.call(drawMenu, body.fiscalPeriods, 'fiscalPeriod')
+			.on('change', function () {
+				var fiscalPeriod = getSelected('fiscalPeriod').key;
+				postData({fiscalPeriod: fiscalPeriod, ledger: 'All ledgers', fund: 'All funds'}, 'update');
+			})
+		//fiscalPeriods = body.fiscalPeriods;
+
+		//get default data for chart and ledger/fund menu
+		postData({ledger: 'All ledgers', fund: 'All funds'}, 'load');
+	});
 }
 
 function postData (params, dispatchEvent) {
@@ -72,6 +82,10 @@ function postData (params, dispatchEvent) {
 	var req = $.post('/burndown-data', params);
 
 	req.done(function (body) {
+
+		if ( params.fiscalPeriod ) {
+			formatX(body.data); 		// need to reinitialize the X axis when a new fiscal period is selected
+		}
 		dispatch.call(dispatchEvent, this, body)
 	});
 }
@@ -169,7 +183,6 @@ dispatch.on("load.menus", function (body) {
 				.call(drawMenu, body.options.ledgers, 'ledger')
 				.on('change', function () {
 					var ledger = getSelected('ledger').key;
-					//d3.select('#fund select').property('value', 'All funds');
 					postData({ledger: ledger, fund: 'All funds'}, 'update');
 				});
 
@@ -182,8 +195,7 @@ dispatch.on("load.menus", function (body) {
 				postData({ledger: getSelected('ledger').key, fund: fund}, 'update');
 			});
 
-	drawLine(body.data
-		);
+	drawLine(body.data);
 
 });
 
@@ -210,7 +222,10 @@ function endPoints (data) {
 // if the data is empty for this set, return a set with endpoints at the fiscal year boundaries
 // returns the data flanked by two additional sets of points for extending the line to the beginning and end of the fiscal year
 //need to fetch the allocation amount from the current fund (menu option)
-	var fund = getSelected('fund');
+	var fund = getSelected('fund'),
+		fiscalPeriod = getSelected('fiscalPeriod'),
+		yearStart = new Date(fiscalPeriod.range[0]),
+		yearEnd = new Date(fiscalPeriod.range[1]);
 
 	if (data.length == 0) {	
 		return [[{key: yearStart, value:fund.value}, {key: yearEnd, value:fund.value - fund.commits}]];
@@ -290,11 +305,11 @@ function formatY (maxAlloc) {
 
 function formatX (data) {
 
-
+	var fiscalPeriod = getSelected('fiscalPeriod');
 	//called initially to set the endpoints of the time span on X
-	x.domain(d3.extent(data.map(function (d) {
-		return new Date(d.key);
-	})));
+	x.domain(fiscalPeriod.range.map(function (d) {
+					return new Date(d);
+				}));
 
 	var axisX = d3.select(".xaxis").call(xAxis);
 
