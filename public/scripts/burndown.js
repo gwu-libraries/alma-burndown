@@ -62,17 +62,7 @@ window.onload = function () {
 
 	req.done(function (body) {
 			
-			d3.select('#fiscalPeriod')
-			.append('select')
-			.call(drawMenu, body.fiscalPeriods, 'fiscalPeriod')
-			.on('change', function () {
-				var fiscalPeriod = getSelected('fiscalPeriod').key;
-				postData({fiscalPeriod: fiscalPeriod, ledger: 'All ledgers', fund: 'All funds'}, 'update');
-			})
-		//fiscalPeriods = body.fiscalPeriods;
-
-		//get default data for chart and ledger/fund menu
-		postData({ledger: 'All ledgers', fund: 'All funds'}, 'load');
+		fiscalMenu(body.fiscalPeriods);
 	});
 }
 
@@ -84,7 +74,7 @@ function postData (params, dispatchEvent) {
 	req.done(function (body) {
 
 		if ( params.fiscalPeriod ) {
-			formatX(body.data); 		// need to reinitialize the X axis when a new fiscal period is selected
+			formatX(); 		// need to reinitialize the X axis when a new fiscal period is selected
 		}
 		dispatch.call(dispatchEvent, this, body)
 	});
@@ -96,18 +86,32 @@ dispatch.on('update.chart', function (body) {
 	formatY(body.maxAlloc);
 	
 
-
 });
 
 dispatch.on('load.chart', function (body) {
 
 	// initialize the axes
-	formatX(body.data);
+	formatX();
 	formatY(body.maxAlloc);
 	
 	// draw the initial line on the chart
 
 });
+
+function fiscalMenu(data) {
+	
+	d3.select('#fiscalPeriod')
+		.append('select')
+		.call(drawMenu, body.fiscalPeriods, 'fiscalPeriod')
+		.on('change', function () {
+			var fiscalPeriod = getSelected(fiscalPeriod);
+			postData({fiscalPeriod: fiscalPeriod, ledger: 'All ledgers', fund: 'All funds'}, 'update');
+		});
+
+	//get default data for chart and ledger/fund menu
+	postData({ledger: 'All ledgers', fund: 'All funds'}, 'load');
+
+}
 
 function drawMenu (selection, options, classKey) {
 /*This function sets up the menus initially, populating them with data from the server.
@@ -201,8 +205,10 @@ dispatch.on("load.menus", function (body) {
 
 
 dispatch.on('update.menus', function (body) {
-/*Only ever need to update the fund menu options, which depend on the selected ledger. Ledger options don't change.*/
 	
+	d3.select('#ledger select')
+		.call(updateMenu, body.options.ledgers, 'ledger');
+
 	if (d3.select('#ledger select').property('value') != 'All ledgers') {
 		d3.select("#fund select")
 			.style('visibility', 'visible')
@@ -303,7 +309,7 @@ function formatY (maxAlloc) {
 
 }
 
-function formatX (data) {
+function formatX () {
 
 	var fiscalPeriod = getSelected('fiscalPeriod');
 	//called initially to set the endpoints of the time span on X
