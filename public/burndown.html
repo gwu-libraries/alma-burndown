@@ -1,6 +1,6 @@
 <html>
 	<head>
-		<title>Spending in 2016</title>
+		<title>Rate of Spending by Fiscal Year, Expenditure, and Fund</title>
 		<style>
 			.xaxis path, .yaxis path, .xaxis line, .yaxis line {
 				fill: none;
@@ -17,7 +17,7 @@
 				stroke: steelblue;
 				stroke-width: 2.5;
 				stroke-dasharray: 5;
-				stroke-opacity: 0.3;
+				stroke-opacity: 0.7;
 			}
 			.menu {
 				width: 50%;
@@ -28,6 +28,10 @@
 			}
 			.cell {
 				display: table-cell;
+				padding: 10px;
+			}
+			.legendText {
+				stroke: black;
 			}
 
 		</style>
@@ -35,17 +39,19 @@
 	</head>
 	<body>
 		<div>
-			<h3 align="center">Expenditures</h3>
-			<h4 align="center">Fiscal Year 2015/2016</h4>
+			<h3 align="center">Rate of Spending by Fiscal Year, Expenditure, and Fund</h3>
 		</div>
-		<div id='fiscalPeriod'></div>
-		<div id="chart"></div>
-		<div id="ledgerFundMenu" class="menu">
+		
+		<div class="menu">
 			<div class="row">
+				<div id='fiscalPeriod' class='cell'></div>
 				<div id="ledger" class="cell"></div>
 				<div id="fund" class="cell"></div>
 			</div>
+			<div class='row'><p></p></div>
 		</div>
+	<div id="chart"></div>
+	<div id="legend"></div>		
 	</body>
 	<script src="scripts/d3.min.js"></script>
 	<script src="scripts/jquery-3.0.0.min.js"></script>

@@ -100,12 +100,13 @@ dispatch.on('load.chart', function (body) {
 
 function fiscalMenu(data) {
 	
+	
 	d3.select('#fiscalPeriod')
 		.append('select')
-		.call(drawMenu, body.fiscalPeriods, 'fiscalPeriod')
+		.call(drawMenu, data, 'fiscalPeriod')
 		.on('change', function () {
-			var fiscalPeriod = getSelected(fiscalPeriod);
-			postData({fiscalPeriod: fiscalPeriod, ledger: 'All ledgers', fund: 'All funds'}, 'update');
+			var fiscalPeriod = getSelected('fiscalPeriod');
+			postData({fiscalPeriod: fiscalPeriod.key, ledger: 'All ledgers', fund: 'All funds'}, 'update');
 		});
 
 	//get default data for chart and ledger/fund menu
@@ -119,7 +120,7 @@ For menu options, key=string representing the ledger or fund, value=Boolean for 
 
 	var menuItems = selection.selectAll('option')
 				.data(options, function (d) {
-					return d.key;
+					return d;
 				})				
 				.enter()
 				.append('option')
@@ -200,6 +201,7 @@ dispatch.on("load.menus", function (body) {
 			});
 
 	drawLine(body.data);
+	drawLegend();
 
 });
 
@@ -209,14 +211,17 @@ dispatch.on('update.menus', function (body) {
 	d3.select('#ledger select')
 		.call(updateMenu, body.options.ledgers, 'ledger');
 
-	if (d3.select('#ledger select').property('value') != 'All ledgers') {
+	var ledgerSelected = d3.select('#ledger select').property('value');
+
+	if ((ledgerSelected != 'All ledgers') && (ledgerSelected != 'Select a ledger')) {
 		d3.select("#fund select")
 			.style('visibility', 'visible')
 			.call(updateMenu, body.options.funds, 'fund');
 		}
 
 	else {
-		d3.select('#fund select').style('visibility', 'hidden');
+		d3.select('#fund select').style('visibility', 'hidden')
+			.call(updateMenu, body.options.funds, 'fund');
 	}
 
 	setDefault();
@@ -237,7 +242,7 @@ function endPoints (data) {
 		return [[{key: yearStart, value:fund.value}, {key: yearEnd, value:fund.value - fund.commits}]];
 	}
 	else if (data.length == 1) {
-		return [[{key: yearStart, value:fund.value}, data[0]], [data[0], {key: yearEnd, value: data[0].value - fund.commits}]];
+		return [[{key: yearStart, value:fund.value}, data[0]], data, [data[0], {key: yearEnd, value: data[0].value - fund.commits}]];
 	}
 	else {
 		var d0 = data[0],	// earliest date in the dateset
@@ -325,6 +330,33 @@ function formatX () {
         .attr('dy', '.15em')
         .attr('transform', 'rotate(-65)');
 
+}
+
+function drawLegend () {
+	var legend = d3.select("#legend")
+		.append('svg')
+		.attr('width', 500)
+		.append('g')
+		.attr('class', 'legend')
+		.attr('transform', 'translate(30, 0)');
+
+	legend.append('path')
+		.attr('d', d3.line()([[0, 15], [30, 15]]))
+		.attr('class', 'line mainLine');
+
+	legend.append('path')
+		.attr('d', d3.line()([[0, 45], [30, 45]]))
+		.attr('class', 'line endLine');
+
+	legend.append('text')
+			.attr('x', 35)
+			.attr('y', 15)
+			.text('Total Spent (by Invoice Approval Date)')
+
+	legend.append('text')
+			.attr('x', 35)
+			.attr('y', 45)
+			.text('Allocation + Commitment')
 }
 
 }).call(this);
