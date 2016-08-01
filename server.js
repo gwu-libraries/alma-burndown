@@ -42,7 +42,7 @@ function startUp () {
 
 //Node wrapper around cron scheduler
 //Appears to need a zero in the first slot, or else it starts up multiple times in a row
-cron.schedule('0 24 * * 1-7', () => {
+cron.schedule('0 23 * * 1-7', () => {
   server.close()
   console.log('updating database')
   update();
