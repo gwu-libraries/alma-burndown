@@ -2,7 +2,7 @@ var express = require('express'),
 	app = express(),
 	db = require('./module/colldev-dashboard.js'),
 	bodyParser = require('body-parser'),
-	CronJob = require('cron').CronJob,
+	cron = require('node-cron'),
 	PythonShell = require('python-shell');
 
 
@@ -42,11 +42,11 @@ function startUp () {
 
 //Node wrapper around cron scheduler
 //Appears to need a zero in the first slot, or else it starts up multiple times in a row
-new CronJob('00 00 24 * * 7', () => {
+cron.schedule('0 24 * * 1-7', () => {
   server.close()
   console.log('updating database')
   update();
-}, null, true);
+});
 
 
 function update () {
