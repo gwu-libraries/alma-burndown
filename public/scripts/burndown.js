@@ -20,6 +20,7 @@ var x = d3.scaleTime()
 
 //initiatilze axes with d3 helper functions
 var yAxis = d3.axisLeft(y)
+	.tickSizeInner(-width)
     .tickFormat(dollars);
 
 var xAxis = d3.axisBottom(x);
