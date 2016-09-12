@@ -74,6 +74,7 @@ exports.LedgersFunds = class {
 		let dataDict = {};
 
 		//stores the complete list of ledgers for the ledgers menu
+		var i = 0; // counter for assigning a unique id to each fund obj
 
 		data.forEach( (d) => {
 			//each fund key gets assigned an object bearing its name and its total allocation
@@ -88,7 +89,9 @@ exports.LedgersFunds = class {
 
 			let thisObj = dataDict[d[fiP]],		// for ease of reference
 				fund = reduceData(d, 'fund_');	// populate the fields with the fund data
-	
+
+			fund.idx = i++;
+
 			// if this is the first time seeing this ledger, assign its total and initialize the array of its associated funds
 			if ( !thisObj[d['ledger_key']] ) {
 
@@ -100,7 +103,7 @@ exports.LedgersFunds = class {
 					if (curr != 'key') prev[curr] = ledger[curr];		//get the values from the newly created ledger obj for the "all funds" obj
 					else prev[curr] = 'All funds';		// only difference is the key name
 					return prev;
-				}, {})];
+				}, {idx: i++})];
 
 				//increment the totals across all ledgers
 				for ( var p in thisObj.ledgers[0] ) {
@@ -116,6 +119,7 @@ exports.LedgersFunds = class {
 		Object.keys(dataDict).forEach( (k) => {
 			let copyObj = Object.assign({}, dataDict[k].ledgers[0]);
 			copyObj.key = 'All funds';
+			copyObj.idx = i++;
 			dataDict[k]['All ledgers'] = [copyObj];
 		})
 

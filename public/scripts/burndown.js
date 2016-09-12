@@ -10,9 +10,10 @@ var margin = {top: 20, right: 20, bottom: 150, left: 120},
 var dollars = d3.format('$,.2f');
 
 var menuOptions, // global object to hold ledger/fund data for menu & tabular display
-	paramKeys = ['fiscalPeriod', // template object for AJAX parameters
+	paramKeys = ['fiscalPeriod', // keys for AJAX parameters
 				'ledger',
-				'fund'];
+				'fund'],
+	columns = ['key', 'rollover', 'value', 'expends', 'commits']; // global variable to hold the table columns
 
 //amount = Y axis
 var y = d3.scaleLinear()
@@ -230,11 +231,11 @@ dispatch.on('update.table', function (body, params) {
 	var ledgerData = menuOptions.ledgersFunds[params.fiscalPeriod][params.ledger];
 
 	d3.select('tbody')
-		.call(updateTable, ledgerData);
+		.call(drawTable, ledgerData);
 
 });
 
-function drawTableHeader (selection, columns) {
+function drawTableHeader (selection) {
 
 	selection.append('tr')
 		.selectAll('th')
@@ -249,51 +250,33 @@ function drawTableHeader (selection, columns) {
 
 }
 
+
 function drawTable (selection, data) {
-
-	//var fiscalPeriod = getSelected('fiscalPeriod');
-
-	//if (fiscalPeriod.value != 1) return;
-
-	var columns = Object.keys(data[0]); 
-
-	selection.selectAll('tr')
-			.data(data, function (d) {
-				return d.key;
-			})
-			.enter()
-			.append('tr')
-			.selectAll('td')
-			.data(function (d) {
-				return columns.map( function (c) {
-					return d[c];
-				});
-			})
-			.enter()
-			.append('td')
-			.text(function (d) {
-				return d;
-			});
-
-}
-
-function updateTable (selection, data) {
 	
-	var columns = Object.keys(data[0]),
-		tableRows = selection.selectAll('tr')
+	console.log(data)
+	var tableRows = selection.selectAll('tr')
 				.data(data, function (d) {
-					return d.key;
+					return d.idx;
 				});
 
-		tableCells = tableRows.selectAll('td')
+	var tableRowsEnter = tableRows.enter()
+				.append('tr');
+
+	tableRowsEnter.selectAll('td')
 				.data(function (d) {
 					return columns.map( function (c) {
-						return d[c];
+						var v = d[c];
+						if ( c != 'key' ) v = dollars(v);
+						return v;
 					});
+				})
+				.enter()
+				.append('td')
+				.text(function (d) {
+					return d;
 				});
 
-	tableRows.exit().remove();
-	tableCells.exit().remove();
+		tableRows.exit().remove();
 
 }
 
@@ -303,14 +286,13 @@ function drawTableOnLoad () {
 	// TO DO: Show the ledgers on init for a new fiscal period selection?
 
 	var fiscalPeriod = getSelected('fiscalPeriod').key,
-		data = menuOptions.ledgersFunds[fiscalPeriod]['All ledgers'],
-		columns = Object.keys(data[0]);
+		data = menuOptions.ledgersFunds[fiscalPeriod]['All ledgers'];
 
 	var table = d3.select('#table')
 						.append('table')
 		
 		table.append('thead')
-			.call(drawTableHeader, columns);
+			.call(drawTableHeader);
 		
 		table.append('tbody')
 			.call(drawTable, data);
