@@ -9,6 +9,10 @@ var margin = {top: 20, right: 20, bottom: 150, left: 120},
 //d3 formatting function for currency to two decimal places
 var dollars = d3.format('$,.2f');
 
+var menuOptions, // global object to hold ledger/fund data for menu & tabular display
+	paramKeys = ['fiscalPeriod', // template object for AJAX parameters
+				'ledger',
+				'fund'];
 
 //amount = Y axis
 var y = d3.scaleLinear()
@@ -58,62 +62,124 @@ window.onload = function () {
 
 	//initial AJAX calls
 
-	//get fiscal period options
-	var req = $.post('/fiscal-periods');
+	//get fiscal period and ledger/fund data
+	var req = $.post('/ledger_data');
 
 	req.done(function (body) {
-			
-		fiscalMenu(body.fiscalPeriods);
+		//console.log(body)
+		menuOptions = body;
+		drawMenusOnLoad();
+		drawTableOnLoad();
 	});
 }
 
-function postData (params, dispatchEvent) {
+function postData (dispatchEvent, selected) {
 /*Handles AJAX calls with server. User selections posted to server; received data passed to dispatcher functions 
 	as determined by the dispatchEvent parameter*/
+	var params = {};  // object to pass with parameter values to the server
+
+	// if a fiscal period or ledger has been selected, send "all funds"
+	if ( selected ) {
+		params.fiscalPeriod = getSelected('fiscalPeriod').key; 
+		
+		params.ledger = ( selected == 'fiscalPeriod' ) ? 'All ledgers' : getSelected('ledger').key;
+
+		params.fund = 'All funds';
+	}
+		
+		//populate the params by getting the currently selected menu options
+	else {
+		params = paramKeys.reduce( function (prev, curr) {
+			prev[curr] = getSelected(curr).key;
+			return prev;
+		}, params);
+	}
+
 	var req = $.post('/burndown-data', params);
 
 	req.done(function (body) {
-
-		if ( params.fiscalPeriod ) {
-			formatX(); 		// need to reinitialize the X axis when a new fiscal period is selected
-		}
-		dispatch.call(dispatchEvent, this, body)
+		//console.log(body)
+		
+		formatX(params); 		// need to reinitialize the X axis when a new fiscal period is selected
+		
+		dispatch.call(dispatchEvent, this, body, params)
 	});
 }
 
-dispatch.on('update.chart', function (body) {
-
-	//the Y scale will change depending on the total allocated to a selected ledger or fund
-	formatY(body.maxAlloc);
-	
-
-});
-
-dispatch.on('load.chart', function (body) {
-
-	// initialize the axes
-	formatX();
-	formatY(body.maxAlloc);
-	
-	// draw the initial line on the chart
-
-});
-
-function fiscalMenu(data) {
-	
-	
-	d3.select('#fiscalPeriod')
-		.append('select')
-		.call(drawMenu, data, 'fiscalPeriod')
-		.on('change', function () {
-			var fiscalPeriod = getSelected('fiscalPeriod');
-			postData({fiscalPeriod: fiscalPeriod.key, ledger: 'All ledgers', fund: 'All funds'}, 'update');
+function setDefault () {
+	//set the default text for the menus, using different language if the 'All' option has been selected
+	d3.selectAll('option')
+		.filter(function (d) {
+			return (d.key == 'All funds') || (d.key == 'All ledgers');
+		})
+		.text(function (d) {
+			if (d3.select(this).property('selected')) {
+				return 'Select a ' + d3.select(this).attr('class');
+			}
+			else return d.key;
 		});
 
-	//get default data for chart and ledger/fund menu
-	postData({ledger: 'All ledgers', fund: 'All funds'}, 'load');
-
 }
+
+function getSelected (classKey) {
+	//helper function to return to the currently selected menu item
+	var node = d3.selectAll('.' + classKey).filter(function (d) {
+		return this.selected;
+	});
+	return node.datum();
+}
+
+function drawMenusOnLoad () {
+/*Initialize each menu, including event handler triggered by user selection*/
+
+	var fiscalPeriod = menuOptions.fiscalPeriods[0].key;
+
+	d3.select('#fiscalPeriod')
+		.append('select')
+		.call(drawMenu, menuOptions.fiscalPeriods, 'fiscalPeriod')
+		.on('change', function () {
+			postData('update', 'fiscalPeriod');
+		});
+
+	d3.select('#ledger')
+			.append('select')
+			.call(drawMenu, menuOptions.ledgersFunds[fiscalPeriod].ledgers, 'ledger')
+			.on('change', function () {
+				postData('update', 'ledger');
+			});
+
+	d3.select('#fund')
+			.style('visibility', 'hidden')
+			.append('select')
+			.call(drawMenu, menuOptions.ledgersFunds[fiscalPeriod]['All ledgers'], 'fund')
+			.on('change', function () {
+				postData('update');
+			});
+
+	postData('load');
+}
+
+
+dispatch.on('update.menus', function (body, params) {
+	
+	var thisMenu = menuOptions.ledgersFunds[params.fiscalPeriod];
+
+	d3.select('#ledger select')
+		.call(updateMenu, thisMenu.ledgers, 'ledger');
+
+	if (params.ledger != 'All ledgers') {
+		d3.select("#fund select")
+			.style('visibility', 'visible')
+			.call(updateMenu, thisMenu[params.ledger], 'fund');
+		}
+
+	else {
+		d3.select('#fund select').style('visibility', 'hidden')
+			.call(updateMenu, thisMenu[params.ledger], 'fund');
+	}
+
+	setDefault();
+});
 
 function drawMenu (selection, options, classKey) {
 /*This function sets up the menus initially, populating them with data from the server.
@@ -122,7 +188,7 @@ For menu options, key=string representing the ledger or fund, value=Boolean for 
 	var menuItems = selection.selectAll('option')
 				.data(options, function (d) {
 					return d;
-				})				
+				})
 				.enter()
 				.append('option')
 				.attr('class', classKey)
@@ -158,77 +224,124 @@ function updateMenu (selection, options, classKey) {
 
 }
 
-function setDefault () {
-	//set the default text for the menus, using different language if the 'All' option has been selected
-	d3.selectAll('option')
-		.filter(function (d) {
-			return (d.key == 'All funds') || (d.key == 'All ledgers');
-		})
+
+dispatch.on('update.table', function (body, params) {
+
+	var ledgerData = menuOptions.ledgersFunds[params.fiscalPeriod][params.ledger];
+
+	d3.select('tbody')
+		.call(updateTable, ledgerData);
+
+});
+
+function drawTableHeader (selection, columns) {
+
+	selection.append('tr')
+		.selectAll('th')
+		.data(columns)
+		.enter()
+		.append('th')
 		.text(function (d) {
-			if (d3.select(this).property('selected')) {
-				return 'Select a ' + d3.select(this).attr('class');
-			}
-			else return d.key;
+			if (d == 'key') return 'FUND'
+			else if (d == 'value') return 'ALLOCATION'
+			else return d.toUpperCase();
 		});
 
 }
 
-function getSelected (classKey) {
-	//helper function to return to the currently selected menu item
-	var node = d3.selectAll('.' + classKey).filter(function (d) {
-		return this.selected;
-	});
-	return node.datum();
-}
+function drawTable (selection, data) {
 
-dispatch.on("load.menus", function (body) {
-/*Initialize each menu, including event handler triggered by user selection*/
+	//var fiscalPeriod = getSelected('fiscalPeriod');
 
-	d3.select('#ledger')
-				.append('select')
-				.call(drawMenu, body.options.ledgers, 'ledger')
-				.on('change', function () {
-					var ledger = getSelected('ledger').key;
-					postData({ledger: ledger, fund: 'All funds'}, 'update');
+	//if (fiscalPeriod.value != 1) return;
+
+	var columns = Object.keys(data[0]); 
+
+	selection.selectAll('tr')
+			.data(data, function (d) {
+				return d.key;
+			})
+			.enter()
+			.append('tr')
+			.selectAll('td')
+			.data(function (d) {
+				return columns.map( function (c) {
+					return d[c];
 				});
-
-	d3.select('#fund')
-			.style('visibility', 'hidden')
-			.append('select')
-			.call(drawMenu, body.options.funds, 'fund')
-			.on('change', function () {
-				var fund = getSelected('fund').key;
-				postData({ledger: getSelected('ledger').key, fund: fund}, 'update');
+			})
+			.enter()
+			.append('td')
+			.text(function (d) {
+				return d;
 			});
 
-	drawLine(body.data);
+}
+
+function updateTable (selection, data) {
+	
+	var columns = Object.keys(data[0]),
+		tableRows = selection.selectAll('tr')
+				.data(data, function (d) {
+					return d.key;
+				});
+
+		tableCells = tableRows.selectAll('td')
+				.data(function (d) {
+					return columns.map( function (c) {
+						return d[c];
+					});
+				});
+
+	tableRows.exit().remove();
+	tableCells.exit().remove();
+
+}
+
+function drawTableOnLoad () {
+	
+	// for the initial table, just show the default "all funds for all ledgers" data
+	// TO DO: Show the ledgers on init for a new fiscal period selection?
+
+	var fiscalPeriod = getSelected('fiscalPeriod').key,
+		data = menuOptions.ledgersFunds[fiscalPeriod]['All ledgers'],
+		columns = Object.keys(data[0]);
+
+	var table = d3.select('#table')
+						.append('table')
+		
+		table.append('thead')
+			.call(drawTableHeader, columns);
+		
+		table.append('tbody')
+			.call(drawTable, data);
+
+
+}
+
+dispatch.on('load.chart', function (body) {
+
+	// initialize the axes
+	formatY(body.maxAlloc);
+
+	// draw the initial line on the chart
+	drawLine(body.data);	
+	// draw the legend
 	drawLegend();
 
 });
 
+dispatch.on('update.chart', function (body) {
 
-dispatch.on('update.menus', function (body) {
+	//the Y scale will change depending on the total allocated to a selected ledger or fund
+	formatY(body.maxAlloc);
 	
-	d3.select('#ledger select')
-		.call(updateMenu, body.options.ledgers, 'ledger');
-
-	var ledgerSelected = d3.select('#ledger select').property('value');
-
-	if ((ledgerSelected != 'All ledgers') && (ledgerSelected != 'Select a ledger')) {
-		d3.select("#fund select")
-			.style('visibility', 'visible')
-			.call(updateMenu, body.options.funds, 'fund');
-		}
-
-	else {
-		d3.select('#fund select').style('visibility', 'hidden')
-			.call(updateMenu, body.options.funds, 'fund');
-	}
-
-	setDefault();
-		//just pass the line helper function a new dataset
+	//just pass the line helper function a new dataset
 	updateLine(body.data);
+
+
 });
+
+
 
 function endPoints (data) {
 // if the data is empty for this set, return a set with endpoints at the fiscal year boundaries
@@ -315,11 +428,14 @@ function formatY (maxAlloc) {
 
 }
 
-function formatX () {
+function formatX (params) {
 
-	var fiscalPeriod = getSelected('fiscalPeriod');
+	var fiscalPeriodData = menuOptions.fiscalPeriods.filter( function (f) {
+			return f.key == params.fiscalPeriod;
+		});
+
 	//called initially to set the endpoints of the time span on X
-	x.domain(fiscalPeriod.range.map(function (d) {
+	x.domain(fiscalPeriodData[0].range.map(function (d) {
 					return new Date(d);
 				}));
 

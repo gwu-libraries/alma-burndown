@@ -1,5 +1,5 @@
 
-#!/home/dsmith/voyager/VGR/bin/python
+#!/home/dsmith/COLLDEV/bin/python
 
 
 # Script to fetch data from Voyager/Oracle and populate a postgres backend ###
@@ -13,8 +13,11 @@ import sqlalchemy
 import os
 from datetime import datetime
 
+#log_dir = 'c:/users/dsmith/desktop/code/dashboard' 
+log_dir = '/home/dsmith/COLLDEV/'
+
 # set up logging for db calls
-logging.basicConfig(filename='dashboard_' + datetime.today().strftime('%d-%m-%Y') +'.log', filemode='w')
+logging.basicConfig(filename= log_dir + 'dashboard_' + datetime.today().strftime('%d-%m-%Y') +'.log', filemode='w')
 engine = sqlalchemy.create_engine(('postgresql://colldev:GWL1br@r13s@localhost:5432/colldev_db'))
 db_logger = logging.getLogger('sqlalchemy.engine')
 db_logger.setLevel(logging.INFO)
@@ -49,6 +52,7 @@ queries = {}
 queries['ledgers'] = '''
 select  
     sum(current_allocation) as current_allocation,
+    sum(original_allocation) as rollover,
     fund_name,
     fiscal_period_name,
     ledger_name, 
