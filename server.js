@@ -61,6 +61,14 @@ function update () {
 	});
 }
 
+app.post('/item-data', (req, res) => {
+	var params = req.body;
+
+	db.getItemData(params).then( (data) => {
+		res.send({data: data});
+	});
+
+});
 
 
 app.post('/burndown-data', (req, res) => {

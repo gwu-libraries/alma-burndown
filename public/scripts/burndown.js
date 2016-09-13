@@ -107,6 +107,26 @@ function postData (dispatchEvent, selected) {
 	});
 }
 
+function postTableData (selected) {
+
+	var params = paramKeys.reduce( function (prev, curr) {
+			prev[curr] = getSelected(curr).key;
+			return prev;
+		}, {});
+
+	params.fund = d3.select(selected).datum().key;
+
+	var req = $.post('/item-data', params);
+
+	req.done(function (body) {
+		console.log(body.data)
+		
+		
+		//dispatch.call(dispatchEvent, this, body, params)
+	});
+
+}
+
 function setDefault () {
 	//set the default text for the menus, using different language if the 'All' option has been selected
 	d3.selectAll('option')
@@ -253,7 +273,6 @@ function drawTableHeader (selection) {
 
 function drawTable (selection, data) {
 	
-	console.log(data)
 	var tableRows = selection.selectAll('tr')
 				.data(data, function (d) {
 					return d.idx;
@@ -278,6 +297,10 @@ function drawTable (selection, data) {
 
 		tableRows.exit().remove();
 
+	tableRowsEnter.on('click', function () {
+		postTableData(this); 
+	});
+
 }
 
 function drawTableOnLoad () {
@@ -290,6 +313,7 @@ function drawTableOnLoad () {
 
 	var table = d3.select('#table')
 						.append('table')
+						.attr('class', 'table table-hover')
 		
 		table.append('thead')
 			.call(drawTableHeader);

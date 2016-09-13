@@ -159,6 +159,24 @@ exports.getInvoiceData = function (params) {
 
 }
 
+exports.getItemData = function (params) {
+	
+	
+	if (params.fund == 'All funds') { 
+
+		return pgDb.any({text: queries.invoices_by_ledger,
+						values: [params.fiscalPeriod, params.ledger]});
+	}
+
+	// a particular fund has been selected
+	else {
+		
+		return pgDb.any({text: queries.invoices_by_fund,
+						values: [params.fiscalPeriod, params.ledger, params.fund]});
+	}
+
+}
+
 exports.postProcess = function (data, total) {
 /*helper function to convert the cumulative total spent into a debit against the total allocation  */	
 	return data.map( (d) => {
