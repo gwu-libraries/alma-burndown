@@ -9,11 +9,14 @@ var margin = {top: 20, right: 20, bottom: 150, left: 120},
 //d3 formatting function for currency to two decimal places
 var dollars = d3.format('$,.2f');
 
+var itemDate = d3.timeFormat('%e-%b-%Y');
+
 var menuOptions, // global object to hold ledger/fund data for menu & tabular display
 	paramKeys = ['fiscalPeriod', // keys for AJAX parameters
 				'ledger',
 				'fund'],
-	columns = ['key', 'rollover', 'value', 'expends', 'commits']; // global variable to hold the table columns
+	columns = ['key', 'rollover', 'value', 'expends', 'commits'], // global variable to hold the table columns
+	itemColumns = ['title', 'amount', 'fund_name', 'invoice_date', 'invoice_status', 'invoice_status_date', 'location_code', 'vendor_name', 'bib_id', 'invoice_number'];
 
 //amount = Y axis
 var y = d3.scaleLinear()
@@ -119,10 +122,8 @@ function postTableData (selected) {
 	var req = $.post('/item-data', params);
 
 	req.done(function (body) {
-		console.log(body.data)
-		
-		
-		//dispatch.call(dispatchEvent, this, body, params)
+		// call the bootstrap modal function, passing in the server data
+		$('#myModal').modal('show', body.data);
 	});
 
 }
@@ -179,7 +180,6 @@ function drawMenusOnLoad () {
 
 	postData('load');
 }
-
 
 dispatch.on('update.menus', function (body, params) {
 	
@@ -321,8 +321,64 @@ function drawTableOnLoad () {
 		table.append('tbody')
 			.call(drawTable, data);
 
+	drawModalTable();
 
 }
+
+function drawModalTable () {
+
+	var table = d3.select('.modal-body')
+					.append('table')
+					.attr('class', 'table');
+	
+	table.append('thead')
+		.append('tr')
+		.selectAll('th')
+		.data(itemColumns)
+		.enter()
+		.append('th')
+		.text(function (d) {
+			return d.toUpperCase();
+		});
+
+	table.append('tbody')
+		.attr('id', 'modalTBody');
+}
+
+function updateModalTable (data) {
+
+	var rows = d3.select('#modalTBody')
+					.selectAll('tr')
+					.data(data, function (d) {
+							return d.bib_id;
+						});
+
+		var rowsEnter = rows.enter()
+						.append('tr');
+
+		var cells = rowsEnter.selectAll('td')
+						.data(function (d) {
+							return itemColumns.map(function (c) {
+								return d[c];
+							})
+						})
+						.enter()
+						.append('td')
+						.text(function (d) {
+							return d;
+						});
+
+		rows.exit().remove();
+
+}
+
+//event handler for the bootstrap modal -- data passed as property on the event itself...
+
+$('#myModal').on('shown.bs.modal', function (e) {
+		data = e.relatedTarget;
+		updateModalTable(data);
+	});
+
 
 dispatch.on('load.chart', function (body) {
 

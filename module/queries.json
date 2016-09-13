@@ -9,5 +9,5 @@
 	"inv_stat_date_ledg": "with win_fun as (select date_trunc('day', invoice_status_date) as inv_date, amount from invoices where ledger_name like $1 and fiscal_period_name like $2) select inv_date, sum(sum(amount)) over (order by inv_date asc) as cumsum from win_fun group by inv_date",
 	"inv_stat_date_fund": "with win_fun as (select date_trunc('day', invoice_status_date) as inv_date, amount from invoices where ledger_name like $1 and parent_fund like $2 and fiscal_period_name like $3) select inv_date, sum(sum(amount)) over (order by inv_date asc) as cumsum from win_fun group by inv_date",
 	"inv_stat_date_all": "with win_fun as (select date_trunc('day', invoice_status_date) as inv_date, amount from invoices where fiscal_period_name like $1) select inv_date, sum(sum(amount)) over (order by inv_date asc) as cumsum from win_fun group by inv_date",
-	"invoices_by_fund": "select * from invoices where fiscal_period_name like $1 and ledger_name like $2 and parent_fund like $3",
-	"invoices_by_ledger": "select * from invoices where fiscal_period_name like $1 and ledger_name like $2"}
+	"invoices_by_fund": "select * from invoices where fiscal_period_name like $1 and ledger_name like $2 and parent_fund like $3 order by invoice_date asc",
+	"invoices_by_ledger": "select * from invoices where fiscal_period_name like $1 and ledger_name like $2 order by invoice_date asc"}

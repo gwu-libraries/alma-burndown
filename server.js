@@ -94,7 +94,6 @@ app.post('/burndown-data', (req, res) => {
 
 app.post('/ledger_data', (req, res) => {
 	/*Serves fiscal period options to burndown.js for populating the menu*/
-	//selected = data[0].key; // initialize the last selected to the default value
 		res.send({fiscalPeriods: fiscalPeriods, ledgersFunds: ledgersFunds});	
 	//})
 	
