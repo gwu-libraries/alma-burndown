@@ -9,7 +9,10 @@ var margin = {top: 20, right: 20, bottom: 150, left: 120},
 //d3 formatting function for currency to two decimal places
 var dollars = d3.format('$,.2f');
 
-var itemDate = d3.timeFormat('%e-%b-%Y');
+var itemDate = d3.timeFormat('%e-%b-%Y'),
+	itemDateParser = function (d) {
+		return itemDate(new Date(d));
+	};
 
 var menuOptions, // global object to hold ledger/fund data for menu & tabular display
 	paramKeys = ['fiscalPeriod', // keys for AJAX parameters
@@ -17,6 +20,14 @@ var menuOptions, // global object to hold ledger/fund data for menu & tabular di
 				'fund'],
 	columns = ['key', 'rollover', 'value', 'expends', 'commits'], // global variable to hold the table columns
 	itemColumns = ['title', 'amount', 'fund_name', 'invoice_date', 'invoice_status', 'invoice_status_date', 'location_code', 'vendor_name', 'bib_id', 'invoice_number'];
+
+var transforms = {title: function (t) {
+								if (t.length > 20) return t.slice(0, 12).trim() + '...';
+								else return t;
+							},
+				invoice_date: itemDateParser,
+				invoice_status_date: itemDateParser,
+				amount: dollars };
 
 //amount = Y axis
 var y = d3.scaleLinear()
@@ -359,7 +370,8 @@ function updateModalTable (data) {
 		var cells = rowsEnter.selectAll('td')
 						.data(function (d) {
 							return itemColumns.map(function (c) {
-								return d[c];
+								var val = ( transforms[c] ) ? transforms[c](d[c]) : d[c];  
+								return val;
 							})
 						})
 						.enter()
