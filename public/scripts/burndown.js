@@ -2,7 +2,7 @@
 //wrapped as function to avoid loading variables into the global browser namespace
 
 //parameters for the SVG canvas
-var margin = {top: 20, right: 20, bottom: 150, left: 120},
+var margin = {top: 20, right: 20, bottom: 75, left: 120},
     width = 1060 - margin.left - margin.right,
     height = 600 - margin.top - margin.bottom;
 
@@ -340,7 +340,7 @@ function drawModalTable () {
 
 	var table = d3.select('.modal-body')
 					.append('table')
-					.attr('class', 'table');
+					.attr('class', 'table table-condensed table-striped');
 	
 	table.append('thead')
 		.append('tr')
@@ -527,6 +527,7 @@ function drawLegend () {
 	var legend = d3.select("#legend")
 		.append('svg')
 		.attr('width', 500)
+		.attr('height', 100)
 		.append('g')
 		.attr('class', 'legend')
 		.attr('transform', 'translate(30, 0)');
