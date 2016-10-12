@@ -21,6 +21,14 @@ var menuOptions, // global object to hold ledger/fund data for menu & tabular di
 	columns = ['key', 'rollover', 'value', 'expends', 'commits'], // global variable to hold the table columns
 	itemColumns = ['title', 'amount', 'fund_name', 'invoice_date', 'invoice_status', 'invoice_status_date', 'location_code', 'vendor_name', 'bib_id', 'invoice_number'];
 
+function makeTestFunc (key) {
+	return function (d) {
+		return d[key] == 0;
+	}
+}
+
+var testValue = makeTestFunc('expends');
+
 var transforms = {title: function (t) {
 								if (t.length > 20) return t.slice(0, 12).trim() + '...';
 								else return t;
@@ -308,8 +316,8 @@ function drawTable (selection, data) {
 
 		tableRows.exit().remove();
 
-	tableRowsEnter.on('click', function () {
-		postTableData(this); 
+	tableRowsEnter.on('click', function (d) {
+		if (!testValue(d)) postTableData(this); 
 	});
 
 }
