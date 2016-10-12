@@ -18,7 +18,7 @@ var menuOptions, // global object to hold ledger/fund data for menu & tabular di
 	paramKeys = ['fiscalPeriod', // keys for AJAX parameters
 				'ledger',
 				'fund'],
-	columns = ['key', 'rollover', 'value', 'expends', 'commits'], // global variable to hold the table columns
+	columns = ['key', 'rollover', 'value', 'expends', 'commits', 'balance'], // global variable to hold the table columns
 	itemColumns = ['title', 'amount', 'fund_name', 'invoice_date', 'invoice_status', 'invoice_status_date', 'location_code', 'vendor_name', 'bib_id', 'invoice_number'];
 
 function makeTestFunc (key) {

@@ -10,9 +10,8 @@ var pgDb = pgp(queries.connection);
 // define column names as constants for ease of adjustment later
 // TO DO: is there a way to generate these programmatically, using symbols??
 const amount = 'amount',
-	keys = ['key', 'commits', 'expends', 'rollover', 'value'], //uses "value" for "allocation" and "key" for "_name" for D3 consistency
-	fiP = 'fiscal_period_name',
-	pathName = './public/data/';
+	keys = ['key', 'commits', 'expends', 'rollover', 'balance', 'value'], //uses "value" for "allocation" and "key" for "_name" for D3 consistency
+	fiP = 'fiscal_period_name';
 
 var exports = module.exports = {};
 
