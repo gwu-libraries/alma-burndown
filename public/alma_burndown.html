@@ -1,0 +1,59 @@
+<html>
+<head>
+	<link rel="stylesheet" href="./css/alma_burndown.css"/>
+	<link rel="stylesheet" href="./css/bootstrap.min.css"/>
+</head>
+<body>
+	<div id="title"></div>
+	<div id="chart"></div>
+	<div id="legend"></div>
+	<div id="menu">
+		<table>
+			<tbody>
+				<tr>
+					<th>
+						Ledger
+					</th>
+					<th>
+						Fund
+					</th>
+					<th>
+						Allocation
+					</th>
+					<th>
+						Expenditures to Date
+					</th>
+					<th>
+						Total Projected Spend
+					</th>
+				</tr>
+				<tr id="data_key_row">
+					<td id="parent_fund_ledger_name">
+						<div class="dropdown">
+ 						 	<button class="btn btn-secondary dropdown-toggle" type="button" id="dropdown_parent_fund_ledger_name" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+ 						 	<span>Select a Ledger</span>
+  							</button>
+  							<div class="dropdown-menu">
+				  			</div>
+  						</div>
+  					</td>
+  					<td id = "fund_ledger_name">
+			  			<div class="dropdown">
+				  			<button class="btn btn-secondary dropdown-toggle" type="button" id="dropdown_fund_ledger_name" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+				  			<span>Select a Fund</span>
+				  			</button>
+				  			<div class="dropdown-menu">
+				  			</div>
+				  		</div>
+				  	</td>
+				</tr>
+			</tbody>
+		</table>
+	</div>
+	<script src="https://d3js.org/d3.v5.js"></script>
+	<script src="./scripts/alma_burndown.js"></script>
+	<script src="./scripts/popper.min.js"></script>
+	<script src="./scripts/jquery-3.3.1.min.js"></script>
+	<script src="./scripts/bootstrap.min.js"></script>
+
+</body>
