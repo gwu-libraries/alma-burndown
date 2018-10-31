@@ -1,0 +1,47 @@
+.xaxis path, .yaxis path, .xaxis line, .yaxis line {
+				fill: none;
+				stroke-width: 1;
+				stroke: black;
+			}
+			.actuals-line {
+  				fill: none;
+  				stroke: steelblue;
+  				stroke-width: 2.5;
+				}
+			.projected-line {
+				fill: none;
+				stroke: steelblue;
+				stroke-width: 2.5;
+				stroke-dasharray: 5;
+				stroke-opacity: 0.7;
+			}
+			.menu {
+				width: 50%;
+			}
+			.row {
+				display: table-row;
+			}
+			.cell {
+				display: table-cell;
+				padding: 10px;
+			}
+			.legendText {
+				stroke: black;
+			}
+			.tick line{
+				opacity: 0.2;
+			}
+			
+			td {
+				padding: 10px;
+			}
+			th {
+				padding: 10px;
+				font-weight: bold;
+			}
+			.title {
+     			margin: 0 auto;
+     			width: 500px; 
+     			font-weight: bold;
+     			font-size: 14pt;
+			}

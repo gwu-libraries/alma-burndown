@@ -207,9 +207,18 @@ function makeChartTitle(fiscalYear) {
 function updateDataKey (fund, ledger, data, allocation) {
 /* Updates the data key for the chart shown. */
 
-	// Get the last non-null value in the rolling expenditures, and the last value for the encumbrances, and subtract again from the allocation to get the actual amount
-	let spendToDate = allocation - data.filter(d => (d.value.actuals)).pop().value.actuals,
-		projectedSpend = allocation - data[data.length-1].value.projected;
+	// Gets the last non-null value in the rolling expenditures, and the last value for the encumbrances, and subtracts again from the allocation to get the actual amount
+	var spendToDate, projectedSpend;
+	try {
+		spendToDate = allocation - data.filter(d => (d.value.actuals)).pop().value.actuals,
+			projectedSpend = allocation - data[data.length-1].value.projected;
+		}
+	catch (e) {
+		// The above will throw an error when there are zero expenditures and encumbrances on a fund.
+		// In that case, we should set the actual and projected spend to zero.
+		spendToDate = 0;
+		projectedSpend = 0;
+	}
 
 	d3.selectAll(".key_cell").remove()
 
@@ -294,6 +303,15 @@ function makeDropDown(id, data) {
 		return dropdownElements;
 }
 
+function addDropDownTitle (fund, ledger) {
+
+d3.select("#dropdown_parent_fund_ledger_name span")
+					.text(ledger);
+d3.select("#dropdown_fund_ledger_name span")
+					.text(fund);
+
+}
+
 // get the data, using the D3 fetch-based API's
 Promise.all([d3.csv('./data/sum_fund_item_level.csv'),
 			d3.csv('./data/sum_fund_allocation.csv'),
@@ -318,6 +336,8 @@ Promise.all([d3.csv('./data/sum_fund_item_level.csv'),
 				fiscalDates,
 				chartArgs);
 
+		addDropDownTitle(summaryFund, ledger)
+
 		updateDataKey(summaryFund, ledger, rolledData, allocLookup[ledger][summaryFund]);
 
 		// populate the ledger and fund menus
@@ -329,10 +349,7 @@ Promise.all([d3.csv('./data/sum_fund_item_level.csv'),
 				d3.select(`#fund_ledger_name div[class*='dropdown'] div[class*='dropdown-menu']`)
 					.selectAll(".dropdown-item").remove();
 				// set the text of the current (parent) menu to the selected option
-				d3.select("#dropdown_parent_fund_ledger_name span")
-					.text(d);
-				d3.select("#dropdown_fund_ledger_name span")
-					.text("Select a Fund");
+				addDropDownTitle("Select a fund", d)
 				// call this function with the child menu id and data
 				childMenuItems = makeDropDown("fund_ledger_name", allocLookup[d]);
 				childMenuItems.on("click", dd => {
