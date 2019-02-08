@@ -1,4 +1,4 @@
-# voyager-dashboard
+# Alma Funds Expenditure Burndown Viewer
 
 A lightweight web app for viewing Alma data as a JS chart. 
 
