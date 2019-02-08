@@ -34,32 +34,26 @@ Installation has been tested on a Linux server (Ubuntu 14.04 LTS) and a Windows 
 
    * The optional `[COLUMN_MAP]` section provides a way to convert Alma Analytics column names to more concise strings as desired. Note that the column names must match those invoked in `scripts/alma_burndown.js`. 
 
-7. Create the following folders within the project root folder:
+7. Create the following directories within the project root folder:
 
    * `logs`
 
-   * `data`
-    
-	10. Start the Node server:
+   * `public/data`
 
-		`dashboard/node server.js`
+8. Install the following files into the appropriate directories:
 
-	11. Open a browser and go to localhost:3000/index.html
+   * [D3.js](https://d3js.org/): `d3.min.js` into `./public/scripts`.
 
-	12. (Optional) To make the dashboard accessible over HTTP to other users, there are at least two options:
+   * [Bootstrap](https://getbootstrap.com/): `bootstrap.min.css` into `./public/css` and `bootstrap.min.js` into `./public/scripts`.
 
-		1. Change the following line in **server.js** to point to a port that is open for HTTP traffic:
+   * [JQuery](https://jquery.com/): `jquery-3.3.1.min.js` into `./public/scripts`.
 
-			`server = app.listen(3000);` (3000 is the port number)
+   * [Popper](https://popper.js.org/): `popper.min.js` into `./public/scripts`.
 
-		2. Set up a third-party web server (like Apache) to listen on an open port and redirect traffic to the port specified by *server.js* (e.g., 3000). With Apache 2.x, you can use mod_proxy: https://httpd.apache.org/docs/current/mod/mod_proxy.html 
+9. Run `python fetch_analytics_data.py` at the command line from the root project folder.
 
+10. Start the Node server from the root project folder: `node server.js`. Alternately, use a process manager in production like [pm2](http://pm2.keymetrics.io/).
 
+11. Open a browser and go to [http://localhost:3000](http://localhost:3000).
 
-
-
-
-
-
-
-
+12. To refresh data from Alma Analytics, the script `update_analytics.sh` can be run as a cron job.
