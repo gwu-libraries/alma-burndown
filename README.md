@@ -24,9 +24,22 @@ Installation has been tested on a Linux server (Ubuntu 14.04 LTS) and a Windows 
 
 	`home/dashboard/pip install -r requirements.txt` 
 
-6. Update the `alma_analytics.ini` file:
+6. Update the `alma_analytics.ini` file. Note that this file uses the pipe `|` character to delimit key-value pairs (to avoid potential conflicts with Alma Analytics column names).
 
-   * 
+   * Enter the string value of your Alma Analytics API key under `[API_KEYS]`.
+
+   * Enter the report names and the paths to those reports under `[PATHS]`. (The path is the provided in Alma Analytics in the Properties of each report.)
+
+   * The paths will need to have special characters -- like spaces and forward slashes -- URL encoded and escaped. (The double `%` is necessary because of Python string formatting conventions.)
+
+   * The optional `[COLUMN_MAP]` section provides a way to convert Alma Analytics column names to more concise strings as desired. Note that the column names must match those invoked in `scripts/alma_burndown.js`. 
+
+7. Create the following folders within the project root folder:
+
+   * `logs`
+
+   * `data`
+    
 	10. Start the Node server:
 
 		`dashboard/node server.js`
